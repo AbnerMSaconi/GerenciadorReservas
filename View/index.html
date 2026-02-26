@@ -1,249 +1,256 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Gerenciador de Reservas</title>
+    <title>Sistema de Controle - Reservas</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <style>
-        /* Regras de cores baseadas no statusCalculado vindo da API */
-        .table-em-andamento { background-color: #d1e7dd !important; } /* Verde suave */
-        .table-futuras-proximas { background-color: #fff3cd !important; } /* Amarelo/Atenção */
-        .table-futuras-normais { background-color: #cfe2ff !important; } /* Azul suave */
-        .table-encerradas { background-color: #e2e3e5 !important; color: #6c757d; } /* Cinza */
-        
+        .table-em-andamento { background-color: #a6fcd5 !important; }
+        .table-futuras-proximas { background-color: #fff3cd !important; }
+        .table-futuras-normais { background-color: #a3a4fc !important; }
+        .table-encerradas { background-color: #ff8787 !important; color: #6c757d; }
         .input-inline { width: 80px; text-align: right; }
+        .toast-container { position: fixed; top: 20px; right: 20px; z-index: 1090; }
+        .btn-acao { padding: 0.25rem 0.5rem; font-size: 0.875rem; }
+        
     </style>
 </head>
+
 <body class="bg-light">
+    <div class="toast-container" id="toastContainer"></div>
+
     <div class="container py-4">
-        <h2 class="mb-4">Painel do Administrador - Reservas</h2>
+        <h2 class="mb-4">🏢 Painel do Administrador</h2>
 
-        <div class="card mb-4 shadow-sm">
-            <div class="card-header bg-dark text-white">Registrar Nova Reserva</div>
-            <div class="card-body">
-                <form id="formReserva" class="row g-3">
-                    <input type="hidden" id="clienteId" value="1"> <input type="hidden" id="salaId" value="1"> <div class="col-md-4">
-                        <label>Título da Reunião</label>
-                        <input type="text" class="form-control" id="tituloReserva" required>
-                    </div>
-                    <div class="col-md-3">
-                        <label>Data/Hora Início</label>
-                        <input type="datetime-local" class="form-control" id="dataInicio" required>
-                    </div>
-                    <div class="col-md-3">
-                        <label>Data/Hora Fim</label>
-                        <input type="datetime-local" class="form-control" id="dataFim" required>
-                    </div>
-                    <div class="col-md-2">
-                        <label>Participantes</label>
-                        <input type="number" class="form-control" id="participantes" required>
-                    </div>
-                    <div class="col-md-3">
-                        <label>Valor Hora (R$)</label>
-                        <input type="number" step="0.01" class="form-control" id="valorHora" value="100.00" required>
-                    </div>
-                    <div class="col-md-2 d-flex align-items-end">
-                        <button type="submit" class="btn btn-success w-100">Salvar Reserva</button>
-                    </div>
-                </form>
-            </div>
-        </div>
+        <ul class="nav nav-tabs mb-4" id="meuPainel" role="tablist">
+            <li class="nav-item">
+                <button class="nav-link" id="dashboard-tab" data-bs-toggle="tab" data-bs-target="#dashboard" type="button">📊 Dashboard</button>
+            </li>
+            <li class="nav-item">
+                <button class="nav-link active" id="reservas-tab" data-bs-toggle="tab" data-bs-target="#reservas" type="button">📋 Gestão de Reservas</button>
+            </li>
+            <li class="nav-item">
+                <button class="nav-link" id="clientes-tab" data-bs-toggle="tab" data-bs-target="#clientes" type="button">👥 Cadastro de Clientes</button>
+            </li>
+        </ul>
 
-        <div class="row mb-3 g-2 align-items-end">
-            <div class="col-md-3">
-                <label>Status</label>
-                <select id="filtroStatus" class="form-select">
-                    <option value="">Todos</option>
-                    <option value="em andamento">Em andamento</option>
-                    <option value="futuras proximas">Futuras próximas (< 24h)</option>
-                    <option value="futuras normais">Futuras normais (> 24h)</option>
-                    <option value="encerradas">Encerradas</option>
-                </select>
-            </div>
-            <div class="col-md-3">
-                <label>Data Início (a partir de)</label>
-                <input type="date" class="form-control" id="filtroDataInicio">
-            </div>
-            <div class="col-md-3">
-                <label>Data Fim (até)</label>
-                <input type="date" class="form-control" id="filtroDataFim">
-            </div>
-            <div class="col-md-3">
-                <button class="btn btn-primary w-100" onclick="carregarReservas(1)">Aplicar Filtros</button>
-            </div>
-        </div>
-
-        <div class="table-responsive shadow-sm">
-            <table class="table table-bordered table-hover mb-0">
-                <thead class="table-dark">
-                    <tr>
-                        <th>ID</th>
-                        <th>Título</th>
-                        <th>Início</th>
-                        <th>Fim</th>
-                        <th>Status</th>
-                        <th>Valor Hora</th>
-                        <th>Desconto (%)</th>
-                        <th>Valor Total</th>
-                    </tr>
-                </thead>
-                <tbody id="tabelaReservas">
-                    </tbody>
-            </table>
-        </div>
-
-        <div class="d-flex justify-content-between align-items-center mt-3">
-            <span id="infoPaginacao" class="text-muted"></span>
-            <div>
-                <button class="btn btn-sm btn-outline-secondary" id="btnAnterior" onclick="mudarPagina(-1)">Anterior</button>
-                <button class="btn btn-sm btn-outline-secondary" id="btnProximo" onclick="mudarPagina(1)">Próximo</button>
-            </div>
-        </div>
-    </div>
-
-    <script>
-        // ATENÇÃO: Substitua a porta 5000 pela porta real que a sua API C# está rodando
-        const API_URL = 'http://localhost:5208/api/reservas';
-        let paginaAtual = 1;
-
-        // Mapeia o texto do back-end para as classes CSS
-        const mapCoresStatus = {
-            "Em andamento": "table-em-andamento",
-            "Futuras proximas": "table-futuras-proximas",
-            "Futuras normais": "table-futuras-normais",
-            "Encerradas": "table-encerradas"
-        };
-
-        async function carregarReservas(pagina = 1) {
-            paginaAtual = pagina;
-            const status = document.getElementById('filtroStatus').value;
-            const dataInicio = document.getElementById('filtroDataInicio').value;
-            const dataFim = document.getElementById('filtroDataFim').value;
-
-            let url = `${API_URL}?pagina=${pagina}&tamanhoPagina=10`;
-            if (status) url += `&status=${encodeURIComponent(status)}`;
-            if (dataInicio) url += `&dataInicio=${dataInicio}`;
-            if (dataFim) url += `&dataFim=${dataFim}`;
-
-            try {
-                const response = await fetch(url);
-                const result = await response.json();
-                renderizarTabela(result.dados);
-                atualizarPaginacao(result.total, result.paginaAtual, result.totalPaginas);
-            } catch (error) {
-                console.error("Erro ao carregar reservas. A API C# está rodando?", error);
-            }
-        }
-
-        function renderizarTabela(reservas) {
-            const tbody = document.getElementById('tabelaReservas');
-            tbody.innerHTML = '';
-
-            reservas.forEach(r => {
-                const tr = document.createElement('tr');
-                const classeCor = mapCoresStatus[r.statusCalculado] || '';
-                tr.className = classeCor;
-
-                // Formatação de Datas
-                const inicioFmt = new Date(r.dataInicio).toLocaleString('pt-BR');
-                const fimFmt = new Date(r.dataFim).toLocaleString('pt-BR');
-
-                tr.innerHTML = `
-                    <td>${r.id}</td>
-                    <td>${r.tituloReserva}</td>
-                    <td>${inicioFmt}</td>
-                    <td>${fimFmt}</td>
-                    <td class="fw-bold">${r.statusCalculado}</td>
-                    <td>R$ ${r.valorHora.toFixed(2)}</td>
-                    <td>
-                        <input type="number" class="form-control form-control-sm input-inline" 
-                               value="${r.desconto}" min="0" max="30" 
-                               onblur="atualizarDesconto(${r.id}, this)"
-                               ${r.statusCalculado === 'Encerradas' ? 'disabled' : ''}>
-                    </td>
-                    <td class="fw-bold" id="total-${r.id}">R$ ${r.valorTotal.toFixed(2)}</td>
-                `;
-                tbody.appendChild(tr);
-            });
-        }
-
-        async function atualizarDesconto(id, inputElement) {
-            const novoDesconto = parseFloat(inputElement.value);
+        <div class="tab-content" id="meuPainelContent">
             
-            if (novoDesconto < 0 || novoDesconto > 30) {
-                alert("O desconto deve ser entre 0% e 30%.");
-                carregarReservas(paginaAtual); // Recarrega o valor antigo
-                return;
-            }
+            <div class="tab-pane fade" id="dashboard" role="tabpanel">
+                <h4 class="mb-3">Resumo Financeiro e Operacional</h4>
+                
+                <div class="row mb-4" id="cardsResumo">
+                    <div class="col-md-3">
+                        <div class="card text-white bg-primary shadow-sm border-0 h-100">
+                            <div class="card-body">
+                                <h6 class="card-title text-uppercase text-white-50">Reservas Ativas</h6>
+                                <h3 class="mb-0" id="resumoAtivas">0</h3>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="card text-white bg-success shadow-sm border-0 h-100">
+                            <div class="card-body">
+                                <h6 class="card-title text-uppercase text-white-50">Faturamento Realizado</h6>
+                                <h3 class="mb-0" id="resumoFaturamento">R$ 0,00</h3>
+                                <small>Reservas encerradas</small>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="card text-dark bg-warning shadow-sm border-0 h-100">
+                            <div class="card-body">
+                                <h6 class="card-title text-uppercase text-dark-50">Receita Prevista</h6>
+                                <h3 class="mb-0" id="resumoPrevisto">R$ 0,00</h3>
+                                <small>Reservas futuras/em andamento</small>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="card text-white bg-info shadow-sm border-0 h-100">
+                            <div class="card-body">
+                                <h6 class="card-title text-uppercase text-white-50">Horas Vendidas</h6>
+                                <h3 class="mb-0" id="resumoHoras">0h</h3>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="card shadow-sm border-0">
+                    <div class="card-body">
+                        <canvas id="graficoOcupacao" height="100"></canvas>
+                    </div>
+                </div>
+            </div>
 
-            try {
-                const response = await fetch(`${API_URL}/${id}/desconto`, {
-                    method: 'PATCH',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(novoDesconto)
-                });
+            <div class="tab-pane fade show active" id="reservas" role="tabpanel">
+                <div class="card mb-4 shadow-sm border-0">
+                    <div class="card-header bg-dark text-white d-flex justify-content-between align-items-center">
+                        <span id="formTitle">✨ Registrar Nova Reserva</span>
+                        <button type="button" class="btn btn-sm btn-outline-light" onclick="cancelarEdicao()">🔄 Limpar</button>
+                    </div>
+                    <div class="card-body">
+                        <form id="formReserva" class="row g-3">
+                            <input type="hidden" id="salaId" value="1">
+                            <div class="col-md-4">
+                                <label class="form-label">Cliente Pagante *</label>
+                                <select class="form-select" id="clienteId" required>
+                                    <option value="">Carregando...</option>
+                                </select>
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label">Título da Reunião *</label>
+                                <input type="text" class="form-control" id="tituloReserva" required>
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label">Responsável *</label>
+                                <input type="text" class="form-control" id="responsavel" required>
+                            </div>
+                            <div class="col-md-3">
+                                <label class="form-label">Início *</label>
+                                <input type="datetime-local" class="form-control" id="dataInicio" required>
+                            </div>
+                            <div class="col-md-3">
+                                <label class="form-label">Fim *</label>
+                                <input type="datetime-local" class="form-control" id="dataFim" required>
+                            </div>
+                            <div class="col-md-2">
+                                <label class="form-label">Participantes *</label>
+                                <input type="number" class="form-control" id="participantes" min="1" value="1" required>
+                            </div>
+                            <div class="col-md-2">
+                                <label class="form-label">Valor/h (R$)</label>
+                                <input type="number" step="0.01" class="form-control" id="valorHora" value="100.00" required>
+                            </div>
+                            <div class="col-md-2 d-flex align-items-end">
+                                <button type="submit" class="btn btn-success w-100" id="btnSalvarReserva">💾 Salvar</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+                <div class="card shadow-sm border-0">
+                    <div class="card-header bg-secondary text-white d-flex justify-content-between align-items-center">
+                        <span>📊 Listagem de Reservas</span>
+                        <button class="btn btn-sm btn-light" onclick="loadReservas(1)">🔄 Atualizar</button>
+                    </div>
+                    
+                    <div class="card-body bg-light border-bottom py-2">
+                        <form id="formFiltros" class="row g-2 align-items-end" onsubmit="event.preventDefault(); loadReservas(1);">
+                            <div class="col-md-3">
+                                <label class="form-label mb-0 small">Status</label>
+                                <select class="form-select form-select-sm" id="filtroStatus">
+                                    <option value="">Todos</option>
+                                    <option value="Em andamento">Em andamento</option>
+                                    <option value="Futuras proximas">Futuras próximas</option>
+                                    <option value="Futuras normais">Futuras normais</option>
+                                    <option value="Encerradas">Encerradas</option>
+                                </select>
+                            </div>
+                            <div class="col-md-3">
+                                <label class="form-label mb-0 small">Data Início (a partir de)</label>
+                                <input type="date" class="form-control form-control-sm" id="filtroDataInicio">
+                            </div>
+                            <div class="col-md-3">
+                                <label class="form-label mb-0 small">Data Fim (até)</label>
+                                <input type="date" class="form-control form-control-sm" id="filtroDataFim">
+                            </div>
+                            <div class="col-md-3 d-flex gap-2">
+                                <button type="submit" class="btn btn-sm btn-primary w-100">🔍 Filtrar</button>
+                                <button type="button" class="btn btn-sm btn-outline-secondary w-100" onclick="limparFiltros()">🧹 Limpar</button>
+                            </div>
+                        </form>
+                    </div>
+                    <div class="table-responsive">
+                        <table class="table table-hover mb-0">
 
-                if (response.ok) {
-                    const result = await response.json();
-                    // Atualização instantânea na tela sem recarregar a página inteira
-                    document.getElementById(`total-${id}`).innerText = `R$ ${result.novoValorTotal.toFixed(2)}`;
-                } else {
-                    const erro = await response.text();
-                    alert("Erro ao atualizar desconto: " + erro);
-                    carregarReservas(paginaAtual); // Recarrega para voltar o valor original
-                }
-            } catch (error) {
-                alert("Erro de comunicação com o servidor.");
-            }
-        }
+                <div class="card shadow-sm border-0">
+                    </div>
+                    <div class="table-responsive">
+                        <table class="table table-hover mb-0">
+                            <thead class="table-dark">
+                                <tr>
+                                    <th>ID</th>
+                                    <th>Título</th>
+                                    <th>Responsável</th>
+                                    <th>Início</th>
+                                    <th>Fim</th>
+                                    <th>Status</th>
+                                    <th>Valor/h</th>
+                                    <th>Desc %</th>
+                                    <th>Total</th>
+                                    <th>Ações</th>
+                                </tr>
+                            </thead>
+                            <tbody id="tabelaReservas"></tbody>
+                        </table>
+                    </div>
+                    <div class="card-footer d-flex justify-content-between align-items-center bg-white">
+                        <span id="infoPaginacao" class="text-muted">Página 1 de 1</span>
+                        <div class="btn-group">
+                            <button class="btn btn-sm btn-outline-secondary" id="btnPagAnterior" onclick="mudarPagina(-1)">Anterior</button>
+                            <button class="btn btn-sm btn-outline-secondary" id="btnPagProxima" onclick="mudarPagina(1)">Próxima</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
 
-        document.getElementById('formReserva').addEventListener('submit', async function(e) {
-            e.preventDefault();
-            
-            const reserva = {
-                clienteId: parseInt(document.getElementById('clienteId').value),
-                salaId: parseInt(document.getElementById('salaId').value),
-                tituloReserva: document.getElementById('tituloReserva').value,
-                dataInicio: document.getElementById('dataInicio').value,
-                dataFim: document.getElementById('dataFim').value,
-                participantesPrevistos: parseInt(document.getElementById('participantes').value),
-                valorHora: parseFloat(document.getElementById('valorHora').value)
-            };
+            <div class="tab-pane fade" id="clientes" role="tabpanel">
+                <div class="card mb-4 shadow-sm border-0">
+                    <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
+                        <span>👤 Cadastrar Novo Cliente</span>
+                        <button type="button" class="btn btn-sm btn-outline-light" onclick="cancelarEdicaoCliente()">🔄 Limpar</button>
+                    </div>
+                    <div class="card-body">
+                        <form id="formCliente" class="row g-3">
+                            <div class="col-md-4">
+                                <label class="form-label">Nome / Razão Social *</label>
+                                <input type="text" class="form-control" id="nomeCliente" required>
+                            </div>
+                            <div class="col-md-3">
+                                <label class="form-label">CPF / CNPJ *</label>
+                                <input type="text" class="form-control" id="cpfCnpjCliente" placeholder="0.000.000-00" required>
+                            </div>
+                            <div class="col-md-3">
+                                <label class="form-label">Telefone *</label>
+                                <input type="tel" class="form-control" id="telefoneCliente" placeholder="(67) 0000-0000" required>
+                            </div>
+                            <div class="col-md-2 d-flex align-items-end">
+                                <button type="submit" class="btn btn-primary w-100">💾 Salvar</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
 
-            try {
-                const response = await fetch(API_URL, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(reserva)
-                });
+                <div class="card shadow-sm border-0">
+                    <div class="card-header bg-info text-white">👥 Clientes Registrados</div>
+                    <div class="table-responsive">
+                        <table class="table table-sm table-hover mb-0">
+                            <thead class="table-dark">
+                                <tr>
+                                    <th>ID</th>
+                                    <th>Nome</th>
+                                    <th>Documento</th>
+                                    <th>Telefone</th>
+                                    <th>Ações</th>
+                                </tr>
+                            </thead>
+                            <tbody id="tabelaClientes"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
 
-                if (response.ok) {
-                    alert('Reserva salva com sucesso!');
-                    this.reset();
-                    document.getElementById('valorHora').value = "100.00"; // Retorna ao padrão
-                    carregarReservas(1);
-                } else {
-                    const erro = await response.text();
-                    alert("Falha: " + erro);
-                }
-            } catch (error) {
-                alert("Erro ao conectar com a API.");
-            }
-        });
+        </div> </div>
 
-        function atualizarPaginacao(total, atual, totalPaginas) {
-            document.getElementById('infoPaginacao').innerText = `Página ${atual} de ${totalPaginas} (${total} registros)`;
-            document.getElementById('btnAnterior').disabled = (atual <= 1);
-            document.getElementById('btnProximo').disabled = (atual >= totalPaginas);
-        }
-
-        function mudarPagina(direcao) {
-            carregarReservas(paginaAtual + direcao);
-        }
-
-        // Carrega os dados ao abrir a tela
-        window.onload = () => carregarReservas(1);
-    </script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    
+    <script src="script.js"></script>
 </body>
+</html>
+</body>
+
 </html>

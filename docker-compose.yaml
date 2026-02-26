@@ -1,0 +1,21 @@
+version: '3.8'
+
+services:
+  db:
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    container_name: mssql_server
+    environment:
+      - ACCEPT_EULA=Y
+      - MSSQL_SA_PASSWORD=SuaSenhaForte123!
+    ports:
+      - "1433:1433"
+
+  api:
+    build: .
+    container_name: gerenciador_api
+    ports:
+      - "5208:8080"
+    environment:
+      - ConnectionStrings__DefaultConnection=Server=db;Database=SistemaReservas;User Id=sa;Password=SuaSenhaForte123!;TrustServerCertificate=True
+    depends_on:
+      - db

@@ -1,47 +1,65 @@
-using System;
+using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations.Schema;
 
 namespace GerenciadorReservas.Models
 {
     public class Reserva
     {
         public int Id { get; set; }
-        public int ClienteId { get; set; }
-        public Cliente? Cliente { get; set; } // Propriedade de navegação
         
+        [Required(ErrorMessage = "Cliente é obrigatório")]
+        public int ClienteId { get; set; }
+        
+        [ForeignKey(nameof(ClienteId))] // 🔹 GUIA O EF CORE AQUI
+        public Cliente? Cliente { get; set; }
+        
+        [Required(ErrorMessage = "Sala é obrigatória")]
         public int SalaId { get; set; }
-        public Sala? Sala { get; set; } // Propriedade de navegação
+        
+        [ForeignKey(nameof(SalaId))] // 🔹 GUIA O EF CORE AQUI
+        public Sala? Sala { get; set; }
 
+        [Required, StringLength(150, MinimumLength = 3)]
         public string TituloReserva { get; set; } = string.Empty;
+        
+        [Required, StringLength(100)]
+        public string Responsavel { get; set; } = string.Empty; 
+        
+        [Required]
         public DateTime DataInicio { get; set; }
+        
+        [Required]
         public DateTime DataFim { get; set; }
+        
+        [Range(1, 100)]
         public int ParticipantesPrevistos { get; set; }
         
+        [Range(0.01, 9999.99)]
         public decimal ValorHora { get; set; }
-        public decimal Desconto { get; set; }
-        public decimal ValorTotal { get; private set; } // Set privado para forçar o uso do método de cálculo
         
-        public string StatusPagamento { get; set; } = "Pendente";
+        [Range(0, 30)]
+        public decimal Desconto { get; set; }
+        
+        public decimal ValorTotal { get; private set; }
+        
+        [StringLength(50)]
+        public string? StatusPagamento { get; set; } = "Pendente";
 
-        // Aplicação direta da regra de negócio exigida
-        public void CalcularValores()
+        public void CalcularValores(DateTime agora)
         {
             if (DataFim <= DataInicio)
-                throw new ArgumentException("A data final deve ser posterior à data inicial.");
-
-            TimeSpan diferenca = DataFim - DataInicio;
-            decimal horas = (decimal)diferenca.TotalHours;
+                throw new ArgumentException("Data final deve ser posterior à inicial.");
             
-            decimal valorBruto = horas * ValorHora;
+            var horas = (decimal)(DataFim - DataInicio).TotalHours;
+            var valorBruto = horas * ValorHora;
 
-            // Regra: Desconto só para reservas futuras (início > agora) e limite de 30%
-            if (DataInicio > DateTime.Now && Desconto > 0 && Desconto <= 30)
+            if (DataInicio > agora && Desconto > 0 && Desconto <= 30)
             {
-                decimal valorDesconto = valorBruto * (Desconto / 100);
-                ValorTotal = valorBruto - valorDesconto;
+                ValorTotal = valorBruto - (valorBruto * Desconto / 100);
             }
             else
             {
-                Desconto = 0; // Zera o desconto se não cumprir as regras
+                Desconto = 0;
                 ValorTotal = valorBruto;
             }
         }
