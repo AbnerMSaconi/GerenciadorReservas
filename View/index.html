@@ -1,0 +1,249 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gerenciador de Reservas</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        /* Regras de cores baseadas no statusCalculado vindo da API */
+        .table-em-andamento { background-color: #d1e7dd !important; } /* Verde suave */
+        .table-futuras-proximas { background-color: #fff3cd !important; } /* Amarelo/Atenção */
+        .table-futuras-normais { background-color: #cfe2ff !important; } /* Azul suave */
+        .table-encerradas { background-color: #e2e3e5 !important; color: #6c757d; } /* Cinza */
+        
+        .input-inline { width: 80px; text-align: right; }
+    </style>
+</head>
+<body class="bg-light">
+    <div class="container py-4">
+        <h2 class="mb-4">Painel do Administrador - Reservas</h2>
+
+        <div class="card mb-4 shadow-sm">
+            <div class="card-header bg-dark text-white">Registrar Nova Reserva</div>
+            <div class="card-body">
+                <form id="formReserva" class="row g-3">
+                    <input type="hidden" id="clienteId" value="1"> <input type="hidden" id="salaId" value="1"> <div class="col-md-4">
+                        <label>Título da Reunião</label>
+                        <input type="text" class="form-control" id="tituloReserva" required>
+                    </div>
+                    <div class="col-md-3">
+                        <label>Data/Hora Início</label>
+                        <input type="datetime-local" class="form-control" id="dataInicio" required>
+                    </div>
+                    <div class="col-md-3">
+                        <label>Data/Hora Fim</label>
+                        <input type="datetime-local" class="form-control" id="dataFim" required>
+                    </div>
+                    <div class="col-md-2">
+                        <label>Participantes</label>
+                        <input type="number" class="form-control" id="participantes" required>
+                    </div>
+                    <div class="col-md-3">
+                        <label>Valor Hora (R$)</label>
+                        <input type="number" step="0.01" class="form-control" id="valorHora" value="100.00" required>
+                    </div>
+                    <div class="col-md-2 d-flex align-items-end">
+                        <button type="submit" class="btn btn-success w-100">Salvar Reserva</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <div class="row mb-3 g-2 align-items-end">
+            <div class="col-md-3">
+                <label>Status</label>
+                <select id="filtroStatus" class="form-select">
+                    <option value="">Todos</option>
+                    <option value="em andamento">Em andamento</option>
+                    <option value="futuras proximas">Futuras próximas (< 24h)</option>
+                    <option value="futuras normais">Futuras normais (> 24h)</option>
+                    <option value="encerradas">Encerradas</option>
+                </select>
+            </div>
+            <div class="col-md-3">
+                <label>Data Início (a partir de)</label>
+                <input type="date" class="form-control" id="filtroDataInicio">
+            </div>
+            <div class="col-md-3">
+                <label>Data Fim (até)</label>
+                <input type="date" class="form-control" id="filtroDataFim">
+            </div>
+            <div class="col-md-3">
+                <button class="btn btn-primary w-100" onclick="carregarReservas(1)">Aplicar Filtros</button>
+            </div>
+        </div>
+
+        <div class="table-responsive shadow-sm">
+            <table class="table table-bordered table-hover mb-0">
+                <thead class="table-dark">
+                    <tr>
+                        <th>ID</th>
+                        <th>Título</th>
+                        <th>Início</th>
+                        <th>Fim</th>
+                        <th>Status</th>
+                        <th>Valor Hora</th>
+                        <th>Desconto (%)</th>
+                        <th>Valor Total</th>
+                    </tr>
+                </thead>
+                <tbody id="tabelaReservas">
+                    </tbody>
+            </table>
+        </div>
+
+        <div class="d-flex justify-content-between align-items-center mt-3">
+            <span id="infoPaginacao" class="text-muted"></span>
+            <div>
+                <button class="btn btn-sm btn-outline-secondary" id="btnAnterior" onclick="mudarPagina(-1)">Anterior</button>
+                <button class="btn btn-sm btn-outline-secondary" id="btnProximo" onclick="mudarPagina(1)">Próximo</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // ATENÇÃO: Substitua a porta 5000 pela porta real que a sua API C# está rodando
+        const API_URL = 'http://localhost:5208/api/reservas';
+        let paginaAtual = 1;
+
+        // Mapeia o texto do back-end para as classes CSS
+        const mapCoresStatus = {
+            "Em andamento": "table-em-andamento",
+            "Futuras proximas": "table-futuras-proximas",
+            "Futuras normais": "table-futuras-normais",
+            "Encerradas": "table-encerradas"
+        };
+
+        async function carregarReservas(pagina = 1) {
+            paginaAtual = pagina;
+            const status = document.getElementById('filtroStatus').value;
+            const dataInicio = document.getElementById('filtroDataInicio').value;
+            const dataFim = document.getElementById('filtroDataFim').value;
+
+            let url = `${API_URL}?pagina=${pagina}&tamanhoPagina=10`;
+            if (status) url += `&status=${encodeURIComponent(status)}`;
+            if (dataInicio) url += `&dataInicio=${dataInicio}`;
+            if (dataFim) url += `&dataFim=${dataFim}`;
+
+            try {
+                const response = await fetch(url);
+                const result = await response.json();
+                renderizarTabela(result.dados);
+                atualizarPaginacao(result.total, result.paginaAtual, result.totalPaginas);
+            } catch (error) {
+                console.error("Erro ao carregar reservas. A API C# está rodando?", error);
+            }
+        }
+
+        function renderizarTabela(reservas) {
+            const tbody = document.getElementById('tabelaReservas');
+            tbody.innerHTML = '';
+
+            reservas.forEach(r => {
+                const tr = document.createElement('tr');
+                const classeCor = mapCoresStatus[r.statusCalculado] || '';
+                tr.className = classeCor;
+
+                // Formatação de Datas
+                const inicioFmt = new Date(r.dataInicio).toLocaleString('pt-BR');
+                const fimFmt = new Date(r.dataFim).toLocaleString('pt-BR');
+
+                tr.innerHTML = `
+                    <td>${r.id}</td>
+                    <td>${r.tituloReserva}</td>
+                    <td>${inicioFmt}</td>
+                    <td>${fimFmt}</td>
+                    <td class="fw-bold">${r.statusCalculado}</td>
+                    <td>R$ ${r.valorHora.toFixed(2)}</td>
+                    <td>
+                        <input type="number" class="form-control form-control-sm input-inline" 
+                               value="${r.desconto}" min="0" max="30" 
+                               onblur="atualizarDesconto(${r.id}, this)"
+                               ${r.statusCalculado === 'Encerradas' ? 'disabled' : ''}>
+                    </td>
+                    <td class="fw-bold" id="total-${r.id}">R$ ${r.valorTotal.toFixed(2)}</td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        async function atualizarDesconto(id, inputElement) {
+            const novoDesconto = parseFloat(inputElement.value);
+            
+            if (novoDesconto < 0 || novoDesconto > 30) {
+                alert("O desconto deve ser entre 0% e 30%.");
+                carregarReservas(paginaAtual); // Recarrega o valor antigo
+                return;
+            }
+
+            try {
+                const response = await fetch(`${API_URL}/${id}/desconto`, {
+                    method: 'PATCH',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(novoDesconto)
+                });
+
+                if (response.ok) {
+                    const result = await response.json();
+                    // Atualização instantânea na tela sem recarregar a página inteira
+                    document.getElementById(`total-${id}`).innerText = `R$ ${result.novoValorTotal.toFixed(2)}`;
+                } else {
+                    const erro = await response.text();
+                    alert("Erro ao atualizar desconto: " + erro);
+                    carregarReservas(paginaAtual); // Recarrega para voltar o valor original
+                }
+            } catch (error) {
+                alert("Erro de comunicação com o servidor.");
+            }
+        }
+
+        document.getElementById('formReserva').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            const reserva = {
+                clienteId: parseInt(document.getElementById('clienteId').value),
+                salaId: parseInt(document.getElementById('salaId').value),
+                tituloReserva: document.getElementById('tituloReserva').value,
+                dataInicio: document.getElementById('dataInicio').value,
+                dataFim: document.getElementById('dataFim').value,
+                participantesPrevistos: parseInt(document.getElementById('participantes').value),
+                valorHora: parseFloat(document.getElementById('valorHora').value)
+            };
+
+            try {
+                const response = await fetch(API_URL, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(reserva)
+                });
+
+                if (response.ok) {
+                    alert('Reserva salva com sucesso!');
+                    this.reset();
+                    document.getElementById('valorHora').value = "100.00"; // Retorna ao padrão
+                    carregarReservas(1);
+                } else {
+                    const erro = await response.text();
+                    alert("Falha: " + erro);
+                }
+            } catch (error) {
+                alert("Erro ao conectar com a API.");
+            }
+        });
+
+        function atualizarPaginacao(total, atual, totalPaginas) {
+            document.getElementById('infoPaginacao').innerText = `Página ${atual} de ${totalPaginas} (${total} registros)`;
+            document.getElementById('btnAnterior').disabled = (atual <= 1);
+            document.getElementById('btnProximo').disabled = (atual >= totalPaginas);
+        }
+
+        function mudarPagina(direcao) {
+            carregarReservas(paginaAtual + direcao);
+        }
+
+        // Carrega os dados ao abrir a tela
+        window.onload = () => carregarReservas(1);
+    </script>
+</body>
+</html>
