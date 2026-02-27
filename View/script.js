@@ -252,36 +252,42 @@ function cancelarEdicao() {
 }
 
 let timeoutResumo = null;
+async function aplicarFiltrosDashboard() {
+    await loadResumo();
+    if (graficoOcupacao) loadGrafico();
+}
+
+function limparFiltrosDashboard() {
+    document.getElementById('formFiltrosDashboard').reset();
+    aplicarFiltrosDashboard();
+}
+
+// Resumo e Gráfico atualizados para lerem as datas
 async function loadResumo() {
     try {
-        const r = await fetch(`${RESERVAS_URL}/resumo`);
+        const di = document.getElementById('dashDataInicio')?.value || '';
+        const df = document.getElementById('dashDataFim')?.value || '';
+        let url = `${RESERVAS_URL}/resumo?`;
+        if (di) url += `dataInicio=${di}&`;
+        if (df) url += `dataFim=${df}`;
+
+        const r = await fetch(url);
         if (!r.ok) throw new Error('Falha ao buscar resumo');
-        
         const resumo = await r.json();
         
         const cards = document.getElementById('cardsResumo');
         if (cards) cards.style.opacity = '0.5';
         
-        const elAtivas = document.getElementById('resumoAtivas');
-        const elHoras = document.getElementById('resumoHoras');
-        const elFaturado = document.getElementById('resumoFaturamento');
-        const elPrevisto = document.getElementById('resumoPrevisto');
-
-        if (elAtivas) elAtivas.innerText = resumo.ativas;
-        if (elHoras) elHoras.innerText = resumo.totalHoras + 'h';
-        if (elFaturado) elFaturado.innerText = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(resumo.faturamentoRealizado);
-        if (elPrevisto) elPrevisto.innerText = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(resumo.faturamentoPrevisto);
+        document.getElementById('resumoAtivas').innerText = resumo.ativas;
+        document.getElementById('resumoHoras').innerText = resumo.totalHoras + 'h';
+        document.getElementById('resumoFaturamento').innerText = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(resumo.faturamentoRealizado);
+        document.getElementById('resumoPrevisto').innerText = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(resumo.faturamentoPrevisto);
             
         if (cards) setTimeout(() => cards.style.opacity = '1', 200);
         
-        // Evita múltiplos timeouts encavalados
         if (timeoutResumo) clearTimeout(timeoutResumo);
         timeoutResumo = setTimeout(loadResumo, 60000); 
-        loadGrafico();
-    } 
-    catch (e) {
-        console.error("Erro no resumo:", e);
-    }
+    } catch (e) { console.error("Erro no resumo:", e); }
 }
 
 //confirmação de pagamento
@@ -307,15 +313,18 @@ async function togglePagamento(id) {
 // ==========================================
 // MÓDULO DO DASHBOARD E GRÁFICO
 // ==========================================
-let graficoOcupacao = null;
-
 async function loadGrafico() {
     try {
-        const r = await fetch(`${RESERVAS_URL}/grafico`);
+        const di = document.getElementById('dashDataInicio')?.value || '';
+        const df = document.getElementById('dashDataFim')?.value || '';
+        let url = `${RESERVAS_URL}/grafico?`;
+        if (di) url += `dataInicio=${di}&`;
+        if (df) url += `dataFim=${df}`;
+
+        const r = await fetch(url);
         if (!r.ok) throw new Error('Falha ao buscar dados do gráfico');
         
         const dados = await r.json();
-        
         const labels = dados.map(d => d.data);
         const volume = dados.map(d => d.quantidade);
         const faturamento = dados.map(d => d.faturamento);
@@ -323,75 +332,34 @@ async function loadGrafico() {
         const canvas = document.getElementById('graficoOcupacao');
         if (!canvas) return;
 
-        // ESTRATÉGICO: Força a div pai a ter uma altura mínima para o canvas não colapsar
         canvas.parentElement.style.height = '350px';
-        canvas.parentElement.style.position = 'relative';
-
         const ctx = canvas.getContext('2d');
         
-        if (graficoOcupacao) {
-            graficoOcupacao.destroy();
+        // 🔹 A CORREÇÃO: Pede para o próprio Chart.js localizar e destruir o gráfico antigo com segurança
+        const chartExistente = Chart.getChart("graficoOcupacao");
+        if (chartExistente) {
+            chartExistente.destroy();
         }
 
-        // Criação de Gráfico Misto (Volume x Faturamento)
-        graficoOcupacao = new Chart(ctx, {
+        // Desenha o gráfico novo sem conflitos
+        new Chart(ctx, {
             type: 'bar',
             data: {
                 labels: labels,
                 datasets: [
-                    {
-                        label: 'Faturamento (R$)',
-                        type: 'line',
-                        data: faturamento,
-                        borderColor: '#198754', // Verde Success Bootstrap
-                        backgroundColor: '#198754',
-                        borderWidth: 3,
-                        tension: 0.3,
-                        yAxisID: 'yFaturamento'
-                    },
-                    {
-                        label: 'Volume de Reservas',
-                        type: 'bar',
-                        data: volume,
-                        backgroundColor: 'rgba(13, 110, 253, 0.7)', // Azul Primary Bootstrap
-                        borderColor: '#0d6efd',
-                        borderWidth: 1,
-                        borderRadius: 4,
-                        yAxisID: 'yVolume'
-                    }
+                    { label: 'Faturamento (R$)', type: 'line', data: faturamento, borderColor: '#198754', backgroundColor: '#198754', borderWidth: 3, tension: 0.3, yAxisID: 'yFaturamento' },
+                    { label: 'Volume de Reservas', type: 'bar', data: volume, backgroundColor: 'rgba(13, 110, 253, 0.7)', borderColor: '#0d6efd', borderWidth: 1, borderRadius: 4, yAxisID: 'yVolume' }
                 ]
             },
             options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                interaction: {
-                    mode: 'index',
-                    intersect: false,
-                },
+                responsive: true, maintainAspectRatio: false, interaction: { mode: 'index', intersect: false },
                 scales: {
-                    yVolume: {
-                        type: 'linear',
-                        display: true,
-                        position: 'left',
-                        title: { display: true, text: 'Qtd Reservas' },
-                        beginAtZero: true,
-                        ticks: { stepSize: 1 }
-                    },
-                    yFaturamento: {
-                        type: 'linear',
-                        display: true,
-                        position: 'right',
-                        title: { display: true, text: 'Faturamento (R$)' },
-                        beginAtZero: true,
-                        grid: { drawOnChartArea: false } // Evita sobreposição de linhas de grade
-                    }
+                    yVolume: { type: 'linear', position: 'left', title: { display: true, text: 'Qtd Reservas' }, beginAtZero: true, ticks: { stepSize: 1 } },
+                    yFaturamento: { type: 'linear', position: 'right', title: { display: true, text: 'Faturamento (R$)' }, beginAtZero: true, grid: { drawOnChartArea: false } }
                 }
             }
         });
-
-    } catch (e) {
-        console.error("Erro ao carregar gráfico:", e);
-    }
+    } catch (e) { console.error("Erro ao carregar gráfico:", e); }
 }
 
 // ==========================================
@@ -426,13 +394,16 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     // Tratamento de Renderização do Gráfico no Bootstrap Lifecycle
-    const tabDashboard = document.getElementById('dashboard-tab');
+const tabDashboard = document.getElementById('dashboard-tab');
     if (tabDashboard) {
         tabDashboard.addEventListener('shown.bs.tab', function () {
-            if (!graficoOcupacao) {
+            // Pede para o Chart.js localizar o gráfico ativo
+            const chartExistente = Chart.getChart("graficoOcupacao");
+            
+            if (!chartExistente) {
                 loadGrafico(); 
             } else {
-                graficoOcupacao.resize();
+                chartExistente.resize();
             }
         });
     }
