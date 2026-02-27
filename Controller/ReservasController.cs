@@ -38,7 +38,7 @@ namespace GerenciadorReservas.Controllers
             [FromQuery] DateTime? dataFim = null)
         {
             var agora = DateTime.UtcNow;
-            
+
             var query = _context.Reservas
                 .Include(r => r.Cliente)
                 .Include(r => r.Sala)
@@ -146,7 +146,7 @@ namespace GerenciadorReservas.Controllers
             //  Validação: data_fim deve ser posterior a data_inicio (obrigatório)
             if (reserva.DataFim <= reserva.DataInicio)
             {
-                ModelState.AddModelError(nameof(reserva.DataFim), 
+                ModelState.AddModelError(nameof(reserva.DataFim),
                     "A data final deve ser posterior à data inicial.");
                 return BadRequest(new
                 {
@@ -204,9 +204,10 @@ namespace GerenciadorReservas.Controllers
             catch (Exception ex)
             {
                 // Em produção: usar ILogger para log estruturado
-                return StatusCode(500, new { 
-                    message = "Erro interno ao salvar reserva.", 
-                    error = ex.Message 
+                return StatusCode(500, new
+                {
+                    message = "Erro interno ao salvar reserva.",
+                    error = ex.Message
                 });
             }
         }
@@ -239,10 +240,10 @@ namespace GerenciadorReservas.Controllers
             // 2. Validação de Conflito Sem Gambiarra:
             // Filtramos por SalaId E verificamos se há sobreposição, 
             // MAS ignoramos explicitamente o ID que estamos editando (r.Id != id).
-            bool temConflito = await _context.Reservas.AnyAsync(r => 
-                r.SalaId == reservaAtualizada.SalaId && 
-                r.Id != id && 
-                r.DataInicio < reservaAtualizada.DataFim && 
+            bool temConflito = await _context.Reservas.AnyAsync(r =>
+                r.SalaId == reservaAtualizada.SalaId &&
+                r.Id != id &&
+                r.DataInicio < reservaAtualizada.DataFim &&
                 r.DataFim > reservaAtualizada.DataInicio);
 
             if (temConflito)
@@ -260,7 +261,7 @@ namespace GerenciadorReservas.Controllers
             reservaExistente.ValorHora = reservaAtualizada.ValorHora;
 
             // 4. Recalcula os valores financeiros com base nos novos dados
-            reservaExistente.CalcularValores(DateTime.Now); 
+            reservaExistente.CalcularValores(DateTime.Now);
 
             try
             {
@@ -294,11 +295,12 @@ namespace GerenciadorReservas.Controllers
             //  Regra de negócio: desconto só para reservas FUTURAS
             var agora = DateTime.UtcNow;
             var status = CalcularStatus(reserva.DataInicio, reserva.DataFim, agora);
-            
+
             if (status == "Encerradas" || status == "Em andamento")
             {
-                return BadRequest(new { 
-                    message = "Desconto só pode ser aplicado em reservas futuras." 
+                return BadRequest(new
+                {
+                    message = "Desconto só pode ser aplicado em reservas futuras."
                 });
             }
 
@@ -309,38 +311,48 @@ namespace GerenciadorReservas.Controllers
             try
             {
                 await _context.SaveChangesAsync();
-                
+
                 //  Retorna apenas os campos atualizados para o front-end
-                return Ok(new { 
-                    reserva.Id, 
-                    reserva.Desconto, 
-                    reserva.ValorTotal 
+                return Ok(new
+                {
+                    reserva.Id,
+                    reserva.Desconto,
+                    reserva.ValorTotal
                 });
             }
             catch (Exception ex)
             {
-                return StatusCode(500, new { 
-                    message = "Erro ao atualizar desconto.", 
-                    error = ex.Message 
+                return StatusCode(500, new
+                {
+                    message = "Erro ao atualizar desconto.",
+                    error = ex.Message
                 });
             }
         }
         // ============================================================================
         // GET: api/reservas/resumo
         // ============================================================================
-        [HttpGet("resumo")]
+[HttpGet("resumo")]
         public async Task<ActionResult<object>> GetResumo()
         {
             var agora = DateTime.UtcNow;
 
-            // Projetamos apenas as colunas necessárias para economizar RAM do servidor
             var dados = await _context.Reservas
-                .Select(r => new { r.DataInicio, r.DataFim, r.ValorTotal })
+                .Select(r => new { r.DataInicio, r.DataFim, r.ValorTotal, r.StatusPagamento })
                 .ToListAsync();
 
             var ativas = dados.Count(r => r.DataFim > agora);
-            var faturamentoRealizado = dados.Where(r => r.DataFim <= agora).Sum(r => r.ValorTotal);
-            var faturamentoPrevisto = dados.Where(r => r.DataFim > agora).Sum(r => r.ValorTotal);
+            
+            // Faturamento Realizado: Blindado contra textos nulos ou diferença de maiúsculas
+            var faturamentoRealizado = dados
+                .Where(r => r.StatusPagamento != null && r.StatusPagamento.ToLower() == "pago")
+                .Sum(r => r.ValorTotal);
+            
+            // Faturamento Previsto: Tudo que não é explicitamente "pago"
+            var faturamentoPrevisto = dados
+                .Where(r => r.StatusPagamento == null || r.StatusPagamento.ToLower() != "pago")
+                .Sum(r => r.ValorTotal);
+            
             var totalHoras = dados.Sum(r => (decimal)(r.DataFim - r.DataInicio).TotalHours);
 
             return Ok(new
@@ -351,7 +363,33 @@ namespace GerenciadorReservas.Controllers
                 TotalHoras = Math.Round(totalHoras, 1)
             });
         }
+        // ============================================================================
+        // PATCH: api/reservas/5/pagamento (NOVO ENDPOINT)
+        // ============================================================================
+        [HttpPost("{id}/pagamento")]
+        public async Task<IActionResult> TogglePagamento(int id)
+        {
+            var reserva = await _context.Reservas.FindAsync(id);
+            if (reserva == null) return NotFound(new { message = "Reserva não encontrada." });
 
+            // A inteligência fica aqui. O C# escreve a string exata que o banco de dados exige.
+            reserva.StatusPagamento = reserva.StatusPagamento == "Pago" ? "Pendente" : "Pago";
+
+            try
+            {
+                await _context.SaveChangesAsync();
+                return Ok(new
+                {
+                    reserva.Id,
+                    reserva.StatusPagamento,
+                    reserva.ValorTotal
+                });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { message = "Erro interno do servidor", error = ex.Message });
+            }
+        }
         // ============================================================================
         // DELETE: api/reservas/5
         // ============================================================================
@@ -380,38 +418,36 @@ namespace GerenciadorReservas.Controllers
         {
             if (dataFim < agora)
                 return "Encerradas";
-            
+
             if (dataInicio <= agora && dataFim >= agora)
                 return "Em andamento";
-            
+
             var horasParaInicio = (dataInicio - agora).TotalHours;
-            
+
             if (horasParaInicio < 24)
                 return "Futuras proximas";
-            
+
             return "Futuras normais";
         }
 
-        [HttpGet("grafico")]
         [HttpGet("grafico")]
         public async Task<ActionResult> GetDadosGrafico()
         {
             try
             {
-                // Janela estratégica: 7 dias no passado até 7 dias no futuro
-                var dataInicioJanela = DateTime.UtcNow.AddDays(-7);
-                var dataFimJanela = DateTime.UtcNow.AddDays(7);
-                
-                // 1. Busca os dados brutos no banco (filtro eficiente no SQL)
-                var reservasBrutas = await _context.Reservas
-                    .Where(r => r.DataInicio >= dataInicioJanela && r.DataInicio <= dataFimJanela)
+                var limiteInicio = DateTime.UtcNow.AddDays(-15);
+                var limiteFim = DateTime.UtcNow.AddDays(15);
+
+                //trazer as reservas brutas para a memoria
+                var reservas = await _context.Reservas
+                    .Where(r => r.DataInicio >= limiteInicio && r.DataInicio <= limiteFim)
                     .Select(r => new { r.DataInicio, r.ValorTotal })
                     .ToListAsync();
-
-                // 2. Agrupa na memória do servidor (evita falha de tradução LINQ para SQL)
-                var dados = reservasBrutas
+                //agrupamento seguro
+                var dados = reservas
                     .GroupBy(r => r.DataInicio.Date)
-                    .Select(g => new {
+                    .Select(g => new
+                    {
                         Data = g.Key.ToString("dd/MM"),
                         Quantidade = g.Count(),
                         Faturamento = g.Sum(r => r.ValorTotal)

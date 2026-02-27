@@ -69,10 +69,30 @@ async function loadReservas(pagina = 1) {
         dados.forEach(res => {
             const statusClass = { "Em andamento": "table-em-andamento", "Futuras proximas": "table-futuras-proximas", "Futuras normais": "table-futuras-normais", "Encerradas": "table-encerradas" }[res.statusCalculado];
             const badgeClass = { "Em andamento": "bg-success", "Futuras proximas": "bg-warning text-dark", "Futuras normais": "bg-primary", "Encerradas": "bg-secondary" }[res.statusCalculado] || "bg-dark";
-            
+// O botão de pagamento muda de cor e texto dependendo do status no banco
+            const btnPagamento = res.statusPagamento === 'Pago' 
+                ? `<button class="btn btn-sm btn-success w-100" onclick="togglePagamento(${res.id})">✅ Pago</button>`
+                : `<button class="btn btn-sm btn-outline-warning text-dark w-100" onclick="togglePagamento(${res.id})">⏳ Pendente</button>`;
+
             const row = document.createElement('tr');
             row.className = statusClass || '';
-            row.innerHTML = `<td>${res.id}</td><td>${res.tituloReserva}</td><td>${res.responsavel}</td><td>${new Date(res.dataInicio).toLocaleString('pt-BR')}</td><td>${new Date(res.dataFim).toLocaleString('pt-BR')}</td><td><span class="badge ${badgeClass}">${res.statusCalculado}</span></td><td>R$ ${res.valorHora.toFixed(2)}</td><td><input type="number" class="form-control form-control-sm input-inline" value="${res.desconto}" onblur="updateDiscount(${res.id}, this.value)" ${res.statusCalculado === 'Encerradas' ? 'disabled' : ''}></td><td>R$ ${res.valorTotal.toFixed(2)}</td><td><button class="btn btn-acao btn-outline-primary" onclick="editReserva(${res.id})">✏️</button> <button class="btn btn-acao btn-outline-danger" onclick="deleteReserva(${res.id})">🗑️</button></td>`;
+            // Colocamos o clienteNome na primeira coluna (res.clienteNome já vem processado da nossa API C#)
+            row.innerHTML = `
+                <td class="fw-bold text-truncate" style="max-width: 150px;" title="${res.clienteNome}">${res.clienteNome}</td>
+                <td class="text-truncate" style="max-width: 150px;" title="${res.tituloReserva}">${res.tituloReserva}</td>
+                <td>${res.responsavel}</td>
+                <td>${new Date(res.dataInicio).toLocaleString('pt-BR').substring(0, 16)}</td>
+                <td>${new Date(res.dataFim).toLocaleString('pt-BR').substring(0, 16)}</td>
+                <td><span class="badge ${badgeClass}">${res.statusCalculado}</span></td>
+                <td>R$ ${res.valorHora.toFixed(2)}</td>
+                <td><input type="number" class="form-control form-control-sm input-inline" value="${res.desconto}" onblur="updateDiscount(${res.id}, this.value)" ${res.statusCalculado === 'Encerradas' ? 'disabled' : ''}></td>
+                <td><strong>R$ ${res.valorTotal.toFixed(2)}</strong></td>
+                <td>${btnPagamento}</td>
+                <td>
+                    <button class="btn btn-acao btn-outline-primary" onclick="editReserva(${res.id})">✏️</button> 
+                    <button class="btn btn-acao btn-outline-danger" onclick="deleteReserva(${res.id})">🗑️</button>
+                </td>
+            `;
             tbody.appendChild(row);
         });
 
@@ -261,6 +281,27 @@ async function loadResumo() {
     } 
     catch (e) {
         console.error("Erro no resumo:", e);
+    }
+}
+
+//confirmação de pagamento
+// Confirmação de Pagamento
+async function togglePagamento(id) {
+    try {
+        const r = await fetch(`${RESERVAS_URL}/${id}/pagamento`, { method: 'POST' });
+        
+        if (r.ok) {
+            notify('Status Financeiro Atualizado!');
+            loadReservas(paginaAtualReservas); // Atualiza a tabela
+            loadResumo(); // 🔹 A SOLUÇÃO: Força o Dashboard a atualizar imediatamente
+        } else {
+            const err = await r.json().catch(() => ({ message: 'Erro na resposta do servidor' }));
+            console.error("Erro do servidor:", err);
+            notify(`Falha: ${err.message || 'Erro na API'}`, 'error');
+        }
+    } catch (e) { 
+        console.error("Falha de comunicação:", e);
+        notify('Erro de conexão com a API', 'error'); 
     }
 }
 // ==========================================
