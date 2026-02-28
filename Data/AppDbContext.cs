@@ -5,17 +5,20 @@ namespace GerenciadorReservas.Data
 {
     public class AppDbContext : DbContext
     {
+        // Construtor: recebe as opções e repassa para o DbContext base.
         public AppDbContext(DbContextOptions<AppDbContext> options) : base(options) { }
 
+        // DbSets: representam as tabelas do banco que o contexto gerencia.
         public DbSet<Cliente> Clientes { get; set; }
         public DbSet<Sala> Salas { get; set; }
         public DbSet<Reserva> Reservas { get; set; }
 
+        // Configuração do modelo: mapeia propriedades, tamanhos, tipos e relacionamentos.
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             base.OnModelCreating(modelBuilder);
 
-            // 🔹 Cliente
+            // Configuração da entidade Cliente: tabela, chave e propriedades (tamanhos e obrigatoriedades).
             modelBuilder.Entity<Cliente>(entity =>
             {
                 entity.ToTable("Clientes");
@@ -26,7 +29,7 @@ namespace GerenciadorReservas.Data
                 entity.Property(e => e.Email).HasMaxLength(100);
             });
 
-            // 🔹 Sala
+            // Configuração da entidade Sala: tabela, chave e propriedades (nome e valor padrão por hora).
             modelBuilder.Entity<Sala>(entity =>
             {
                 entity.ToTable("Salas");
@@ -35,7 +38,7 @@ namespace GerenciadorReservas.Data
                 entity.Property(e => e.ValorHoraPadrao).HasColumnType("decimal(18,2)");
             });
 
-            // 🔹 Reserva (COM RELACIONAMENTOS EXPLÍCITOS)
+            // Configuração da entidade Reserva: propriedades, tipos e relacionamentos explícitos.
             modelBuilder.Entity<Reserva>(entity =>
             {
                 entity.ToTable("Reservas");
@@ -48,13 +51,13 @@ namespace GerenciadorReservas.Data
                 entity.Property(e => e.ValorTotal).HasColumnType("decimal(18,2)");
                 entity.Property(e => e.StatusPagamento).HasMaxLength(50).HasDefaultValue("Pendente");
 
-                // 🔥 RELACIONAMENTO COM CLIENTE (CORRIGE O WARNING)
+                // Relacionamento com Cliente: define FK e evita exclusão em cascata.
                 entity.HasOne(r => r.Cliente)
                       .WithMany()
                       .HasForeignKey(r => r.ClienteId)
                       .OnDelete(DeleteBehavior.Restrict);
 
-                // 🔥 RELACIONAMENTO COM SALA (CORRIGE O WARNING)
+                // Relacionamento com Sala: define FK e evita exclusão em cascata.
                 entity.HasOne(r => r.Sala)
                       .WithMany()
                       .HasForeignKey(r => r.SalaId)

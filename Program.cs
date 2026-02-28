@@ -115,7 +115,7 @@ using (var scope = app.Services.CreateScope())
             };
 
             // Aplica a regra de negócio considerando o seu método CalcularValores atual
-            reserva.CalcularValores(DateTime.UtcNow); 
+            reserva.CalcularValores(DateTime.UtcNow, true); 
 
             db.Reservas.Add(reserva);
         }

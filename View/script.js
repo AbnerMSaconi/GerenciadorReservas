@@ -1,12 +1,15 @@
+// Configurações de API e URLs base
 const API_BASE = 'http://localhost:5208/api';
 const RESERVAS_URL = `${API_BASE}/reservas`;
 const CLIENTES_URL = `${API_BASE}/clientes`;
 
-// Variáveis Globais de Paginação
+// Variáveis globais usadas para paginação das reservas
 let paginaAtualReservas = 1;
 const TAMANHO_PAGINA = 10;
 let totalPaginasGlobais = 1;
 
+// Função utilitária responsável por exibir notificações tipo 'toast' no canto superior direito.
+// Recebe uma mensagem e um tipo (success, error, warning, etc.).
 function notify(msg, type = 'success') {
     const container = document.getElementById('toastContainer');
     const id = `t-${Date.now()}`;
@@ -15,6 +18,8 @@ function notify(msg, type = 'success') {
     toast.show();
 }
 
+// Carrega lista de clientes da API e popula o <select> do formulário e a tabela de clientes.
+// Executada ao iniciar a página ou após alterações no cadastro.
 async function loadClients() {
     try {
         const r = await fetch(CLIENTES_URL);
@@ -42,7 +47,8 @@ async function loadClients() {
     } catch (e) { notify('Erro ao carregar clientes', 'error'); }
 }
 
-// 🔹 FUNÇÃO ATUALIZADA COM PAGINAÇÃO
+// Busca reservas no servidor levando em conta filtros e paginação.
+// Atualiza a tabela de reservas e controla botões de paginação.
 async function loadReservas(pagina = 1) {
     paginaAtualReservas = pagina;
     try {
@@ -110,13 +116,13 @@ async function loadReservas(pagina = 1) {
     } catch (e) { notify('Erro ao listar reservas com filtros', 'error'); }
 }
 
-// Adicione esta função em qualquer lugar do script.js
+// Reseta os campos de filtro de reserva e recarrega a primeira página de resultados.
 function limparFiltros() {
     document.getElementById('formFiltros').reset();
     loadReservas(1);
 }
 
-// 🔹 NOVA FUNÇÃO DE CONTROLE DE PÁGINA
+// Controla a navegação entre páginas de reservas (anterior/próxima).
 function mudarPagina(direcao) {
     const novaPagina = paginaAtualReservas + direcao;
     if (novaPagina >= 1 && novaPagina <= totalPaginasGlobais) {
@@ -124,6 +130,7 @@ function mudarPagina(direcao) {
     }
 }
 
+// Gatilho do submit do formulário de cliente: decide entre criar ou atualizar e envia para a API.
 document.getElementById('formCliente').addEventListener('submit', async function (e) {
     e.preventDefault();
     const editId = this.dataset.editId;
@@ -150,6 +157,7 @@ document.getElementById('formCliente').addEventListener('submit', async function
     } catch (e) { notify('Erro de rede', 'error'); }
 });
 
+// Preenche o formulário com os dados de um cliente existente para edição.
 async function editCliente(id) {
     try {
         const r = await fetch(`${CLIENTES_URL}/${id}`);
@@ -181,6 +189,7 @@ async function editCliente(id) {
     }
 }
 
+// Remove um cliente após confirmação; recarrega lista ao final.
 async function deleteCliente(id) {
     if (!confirm('Excluir este cliente de forma permanente?')) return;
     try {
@@ -195,6 +204,7 @@ async function deleteCliente(id) {
     } catch (e) { notify('Erro de conexão ao remover', 'error'); }
 }
 
+// Restaura o formulário de cliente ao estado de criação (limpa edição atual).
 function cancelarEdicaoCliente() {
     const form = document.getElementById('formCliente');
     delete form.dataset.editId;
@@ -205,6 +215,7 @@ function cancelarEdicaoCliente() {
     btnSalvar.className = 'btn btn-primary w-100';
 }
 
+// Listener para submissão do formulário de reserva: valida campos e chama API (POST/PUT).
 document.getElementById('formReserva').addEventListener('submit', async function (e) {
     e.preventDefault();
     //validacao basica
@@ -221,7 +232,7 @@ document.getElementById('formReserva').addEventListener('submit', async function
     const data = { id: editId ? parseInt(editId) : 0, clienteId: parseInt(document.getElementById('clienteId').value), salaId: 1, tituloReserva: document.getElementById('tituloReserva').value, responsavel: document.getElementById('responsavel').value, dataInicio: new Date(document.getElementById('dataInicio').value).toISOString(), dataFim: new Date(document.getElementById('dataFim').value).toISOString(), participantesPrevistos: parseInt(document.getElementById('participantes').value), valorHora: parseFloat(document.getElementById('valorHora').value) };
     try {
         const r = await fetch(editId ? `${RESERVAS_URL}/${editId}` : RESERVAS_URL, { method: editId ? 'PUT' : 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) });
-        if (r.ok) { notify(editId ? 'Atualizado!' : 'Salvo!'); cancelarEdicao(); loadReservas(paginaAtualReservas); }
+        if (r.ok) { notify(editId ? 'Atualizado!' : 'Salvo!'); cancelarEdicao(); loadReservas(paginaAtualReservas); loadResumo(); }
         else {
             const err = await r.json().catch(() => ({ message: 'Erro desconhecido' }));
             let msg = err.message || 'Dados inválidos';
@@ -236,6 +247,7 @@ document.getElementById('formReserva').addEventListener('submit', async function
     } catch (e) { notify('Erro de rede', 'error'); }
 });
 
+// Prepara o formulário de reserva com os dados existentes para edição de uma reserva específica.
 async function editReserva(id) {
     const r = await fetch(`${RESERVAS_URL}/${id}`);
     const res = await r.json();
@@ -253,18 +265,23 @@ async function editReserva(id) {
     window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
+// Deleta uma reserva após confirmação simples e recarrega a página atual de resultados.
 async function deleteReserva(id) {
     if (confirm('Excluir?')) {
         await fetch(`${RESERVAS_URL}/${id}`, { method: 'DELETE' });
         loadReservas(paginaAtualReservas);
+        loadResumo();
     }
 }
 
+// Atualiza o desconto de uma reserva via PATCH e refaz a listagem de reservas.
 async function updateDiscount(id, val) {
     await fetch(`${RESERVAS_URL}/${id}/desconto`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(parseFloat(val)) });
     loadReservas(paginaAtualReservas);
+    loadResumo();
 }
 
+// Limpa e reseta o formulário de reserva, voltando ao estado de criação em vez de edição.
 function cancelarEdicao() {
     const form = document.getElementById('formReserva');
     delete form.dataset.editId;
@@ -274,18 +291,20 @@ function cancelarEdicao() {
     document.getElementById('valorHora').value = "100.00";
 }
 
-let timeoutResumo = null;
+
+// Executado ao submeter filtros do dashboard: atualiza resumo e gráfico de ocupação.
 async function aplicarFiltrosDashboard() {
     await loadResumo();
     if (graficoOcupacao) loadGrafico();
 }
 
+// Reseta filtros do dashboard e reaplica para recarregar dados.
 function limparFiltrosDashboard() {
     document.getElementById('formFiltrosDashboard').reset();
     aplicarFiltrosDashboard();
 }
 
-// Resumo e Gráfico atualizados para lerem as datas
+// Busca e atualiza os cartões de resumo financeiro/operacional do dashboard.
 async function loadResumo() {
     try {
         const di = document.getElementById('dashDataInicio')?.value || '';
@@ -308,13 +327,10 @@ async function loadResumo() {
             
         if (cards) setTimeout(() => cards.style.opacity = '1', 200);
         
-        if (timeoutResumo) clearTimeout(timeoutResumo);
-        timeoutResumo = setTimeout(loadResumo, 60000); 
     } catch (e) { console.error("Erro no resumo:", e); }
 }
 
-//confirmação de pagamento
-// Confirmação de Pagamento
+// Alterna o status de pagamento de uma reserva (via POST) e atualiza a interface.
 async function togglePagamento(id) {
     try {
         const r = await fetch(`${RESERVAS_URL}/${id}/pagamento`, { method: 'POST' });
@@ -336,6 +352,8 @@ async function togglePagamento(id) {
 // ==========================================
 // MÓDULO DO DASHBOARD E GRÁFICO
 // ==========================================
+// Solicita dados de reserva para geração de gráfico e renderiza com Chart.js,
+// destruindo qualquer instância antiga para evitar sobreposição.
 async function loadGrafico() {
     try {
         const di = document.getElementById('dashDataInicio')?.value || '';
@@ -388,6 +406,8 @@ async function loadGrafico() {
 // ==========================================
 // INICIALIZAÇÃO DA PÁGINA
 // ==========================================
+// Inicialização geral: ao carregar a página, busca clientes, reservas e resumo,
+// configura máscaras e eventos para elementos de formulário e abas.
 document.addEventListener('DOMContentLoaded', () => { 
     loadClients(); 
     loadReservas(1); 

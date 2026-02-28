@@ -16,7 +16,6 @@ namespace GerenciadorReservas.Models
         [StringLength(20, ErrorMessage = "Telefone inválido")]
         public string? Telefone { get; set; }
         
-        // 🔹 PROPRIEDADE QUE ESTAVA FALTANDO (corrige o erro CS1061)
         [StringLength(100, ErrorMessage = "Email inválido")]
         [EmailAddress(ErrorMessage = "Formato de email inválido")]
         public string? Email { get; set; }

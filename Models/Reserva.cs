@@ -10,13 +10,13 @@ namespace GerenciadorReservas.Models
         [Required(ErrorMessage = "Cliente é obrigatório")]
         public int ClienteId { get; set; }
         
-        [ForeignKey(nameof(ClienteId))] // 🔹 GUIA O EF CORE AQUI
+        [ForeignKey(nameof(ClienteId))]
         public Cliente? Cliente { get; set; }
         
         [Required(ErrorMessage = "Sala é obrigatória")]
         public int SalaId { get; set; }
         
-        [ForeignKey(nameof(SalaId))] // 🔹 GUIA O EF CORE AQUI
+        [ForeignKey(nameof(SalaId))]
         public Sala? Sala { get; set; }
         
         [Required(ErrorMessage = "Título da reserva é obrigatório"),
@@ -47,10 +47,10 @@ namespace GerenciadorReservas.Models
         [MaxLength(20)]
         public string? StatusPagamento { get; set; } = "Pendente";
 
-        public void CalcularValores(DateTime agora)
+        public void CalcularValores(DateTime agora, bool ignorarTravaPassado = false)
         {   
-            if (DataInicio <= agora && Id == 0)
-                throw new ArgumentException("Data inicial deve ser no futuro.");
+            if (!ignorarTravaPassado && Id == 0 && DataInicio <= agora)
+                throw new ArgumentException("A data inicial de uma nova reserva deve ser no futuro.");
 
             if (DataFim <= DataInicio)
                 throw new ArgumentException("Data final deve ser posterior à inicial.");
