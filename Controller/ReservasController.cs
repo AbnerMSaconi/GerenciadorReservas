@@ -11,15 +11,26 @@ namespace GerenciadorReservas.Controllers
 {
     [Route("api/[controller]")]
     [ApiController]
+    /// <summary>
+    /// Controlador de reservas: expõe endpoints para CRUD, filtros, relatórios e operações relacionadas a reservas.
+    /// </summary>
     public class ReservasController : ControllerBase
     {
         private readonly AppDbContext _context;
 
+        /// <summary>
+        /// Construtor: injeta o <see cref="AppDbContext"/> usado para acessar o banco de dados.
+        /// </summary>
         public ReservasController(AppDbContext context)
         {
             _context = context;
         }
 
+        /// <summary>
+        /// Recupera uma lista paginada de reservas.
+        /// Suporta filtros por status, intervalo de datas, nome do cliente, responsável e ordenação.
+        /// Retorna também o status calculado de cada reserva e informações de paginação.
+        /// </summary>
         [HttpGet]
         public async Task<ActionResult<object>> GetReservas(
             [FromQuery] int pagina = 1,
@@ -48,13 +59,13 @@ namespace GerenciadorReservas.Controllers
                 else if (status == "Futuras proximas") query = query.Where(r => r.DataInicio > agora && r.DataInicio <= agora.AddHours(24));
                 else if (status == "Futuras normais") query = query.Where(r => r.DataInicio > agora.AddHours(24));
             }
+            
             //filtro por nome cliente
             if (!string.IsNullOrEmpty(clienteNome))
                 query = query.Where(r => r.Cliente != null && r.Cliente.Nome.Contains(clienteNome));
             //filtro por responsável
             if (!string.IsNullOrEmpty(responsavel))
                 query = query.Where(r => r.Responsavel.Contains(responsavel));
-
             //ordenacao
             if (ordenacao == "asc") query = query.OrderBy(r => r.DataInicio);
             else if (ordenacao == "desc") query = query.OrderByDescending(r => r.DataInicio);
@@ -93,6 +104,10 @@ namespace GerenciadorReservas.Controllers
             });
         }
 
+        /// <summary>
+        /// Recupera uma reserva específica pelo seu <paramref name="id"/>.
+        /// Inclui dados relacionados de cliente e sala.
+        /// </summary>
         [HttpGet("{id}")]
         public async Task<ActionResult<Reserva>> GetReserva(int id)
         {
@@ -105,6 +120,10 @@ namespace GerenciadorReservas.Controllers
             return Ok(reserva);
         }
 
+        /// <summary>
+        /// Cria uma nova reserva após validações (datas, conflitos de horário).
+        /// Calcula valores e inicializa campos padrão antes de persistir.
+        /// </summary>
         [HttpPost]
         public async Task<ActionResult<Reserva>> PostReserva(Reserva reserva)
         {
@@ -138,6 +157,10 @@ namespace GerenciadorReservas.Controllers
             }
         }
 
+        /// <summary>
+        /// Atualiza uma reserva existente. Verifica conflitos de horário e validações de data.
+        /// Recalcula valores e salva alterações, tratando concorrência básica.
+        /// </summary>
         [HttpPut("{id}")]
         public async Task<IActionResult> PutReserva(int id, [FromBody] Reserva reservaAtualizada)
         {
@@ -176,6 +199,10 @@ namespace GerenciadorReservas.Controllers
             }
         }
 
+        /// <summary>
+        /// Aplica/atualiza o desconto de uma reserva (0% a 30%).
+        /// Só permite alteração para reservas futuras; recalcula valores após alteração.
+        /// </summary>
         [HttpPatch("{id}/desconto")]
         public async Task<IActionResult> PatchDesconto(int id, [FromBody] decimal novoDesconto)
         {
@@ -204,8 +231,12 @@ namespace GerenciadorReservas.Controllers
             }
         }
 
-[HttpGet("resumo")]
-        public async Task<ActionResult<object>> GetResumo([FromQuery] DateTime? dataInicio = null, [FromQuery] DateTime? dataFim = null)
+    /// <summary>
+    /// Gera um resumo estatístico (reservas ativas, faturamento realizado/previsto, total de horas)
+    /// para o intervalo de datas opcional fornecido.
+    /// </summary>
+    [HttpGet("resumo")]
+    public async Task<ActionResult<object>> GetResumo([FromQuery] DateTime? dataInicio = null, [FromQuery] DateTime? dataFim = null)
         {
             var agora = DateTime.UtcNow;
             var query = _context.Reservas.AsQueryable();
@@ -225,6 +256,10 @@ namespace GerenciadorReservas.Controllers
             return Ok(new { Ativas = ativas, FaturamentoRealizado = faturamentoRealizado, FaturamentoPrevisto = faturamentoPrevisto, TotalHoras = Math.Round(totalHoras, 1) });
         }
 
+        /// <summary>
+        /// Prepara dados agregados para gráfico de reservas entre as datas fornecidas.
+        /// Agrupa por dia ou por mês automaticamente dependendo do período solicitado.
+        /// </summary>
         [HttpGet("grafico")]
         public async Task<ActionResult> GetDadosGrafico([FromQuery] DateTime? dataInicio = null, [FromQuery] DateTime? dataFim = null)
         {
@@ -273,6 +308,9 @@ namespace GerenciadorReservas.Controllers
             }
         }
 
+        /// <summary>
+        /// Alterna o status de pagamento de uma reserva entre "Pago" e "Pendente".
+        /// </summary>
         [HttpPost("{id}/pagamento")]
         public async Task<IActionResult> TogglePagamento(int id)
         {
@@ -292,6 +330,9 @@ namespace GerenciadorReservas.Controllers
             }
         }
 
+        /// <summary>
+        /// Remove uma reserva pelo seu <paramref name="id"/>.
+        /// </summary>
         [HttpDelete("{id}")]
         public async Task<IActionResult> DeleteReserva(int id)
         {
@@ -304,6 +345,10 @@ namespace GerenciadorReservas.Controllers
             return NoContent();
         }
 
+        /// <summary>
+        /// Calcula o status textual da reserva com base nas datas e no momento atual:
+        /// "Encerradas", "Em andamento", "Futuras proximas" ou "Futuras normais".
+        /// </summary>
         private string CalcularStatus(DateTime dataInicio, DateTime dataFim, DateTime agora)
         {
             if (dataFim < agora) return "Encerradas";

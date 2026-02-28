@@ -7,23 +7,26 @@ namespace GerenciadorReservas.Controllers
 {
     [Route("api/[controller]")]
     [ApiController]
+    // Controlador de clientes: expõe endpoints para gerenciamento CRUD de clientes.
     public class ClientesController : ControllerBase
     {
         private readonly AppDbContext _context;
 
+        // Construtor: injeta o AppDbContext para acesso ao banco de dados.
         public ClientesController(AppDbContext context)
         {
             _context = context;
         }
 
+        // GET: Lista todos os clientes (retorna array vazio se não houver registros).
         [HttpGet]
         public async Task<IActionResult> GetClientes()
         {
-            // Retorna a lista (mesmo que vazia []) para o front-end
             var clientes = await _context.Clientes.ToListAsync();
             return Ok(clientes);
         }
 
+        // POST: Cria um novo cliente e persiste no banco.
         [HttpPost]
         public async Task<IActionResult> PostCliente([FromBody] Cliente cliente)
         {
@@ -32,7 +35,7 @@ namespace GerenciadorReservas.Controllers
             return Ok(cliente);
         }
 
-        // GET: api/clientes/5
+        // GET by id: Recupera um cliente específico pelo seu id.
         [HttpGet("{id}")]
         public async Task<ActionResult<Cliente>> GetCliente(int id)
         {
@@ -41,7 +44,7 @@ namespace GerenciadorReservas.Controllers
             return Ok(cliente);
         }
 
-        // PUT: api/clientes/5
+        // PUT: Atualiza um cliente existente; valida ID e trata concorrência.
         [HttpPut("{id}")]
         public async Task<IActionResult> PutCliente(int id, [FromBody] Cliente clienteAtualizado)
         {
@@ -67,7 +70,7 @@ namespace GerenciadorReservas.Controllers
             }
         }
 
-        // DELETE: api/clientes/5
+        // DELETE: Remove um cliente se não houver reservas vinculadas; protege integridade referencial.
         [HttpDelete("{id}")]
         public async Task<IActionResult> DeleteCliente(int id)
         {
@@ -75,7 +78,7 @@ namespace GerenciadorReservas.Controllers
             if (cliente == null)
                 return NotFound(new { message = "Cliente não encontrado." });
 
-            // VALIDAÇÃO ESTRATÉGICA: Impede quebra de integridade referencial do SQL Server
+            // Impede exclusão quando há reservas vinculadas ao cliente.
             bool possuiReservas = await _context.Reservas.AnyAsync(r => r.ClienteId == id);
             if (possuiReservas)
             {
