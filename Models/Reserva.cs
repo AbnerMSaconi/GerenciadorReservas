@@ -18,11 +18,12 @@ namespace GerenciadorReservas.Models
         
         [ForeignKey(nameof(SalaId))] // 🔹 GUIA O EF CORE AQUI
         public Sala? Sala { get; set; }
-
-        [Required, StringLength(150, MinimumLength = 3)]
+        
+        [Required(ErrorMessage = "Título da reserva é obrigatório"),
+        StringLength(150, MinimumLength = 3, ErrorMessage = "Título deve ter entre 3 e 150 caracteres")]
         public string TituloReserva { get; set; } = string.Empty;
         
-        [Required, StringLength(100)]
+        [Required, StringLength(100,ErrorMessage = "Responsável deve ter no máximo 100 caracteres")]
         public string Responsavel { get; set; } = string.Empty; 
         
         [Required]
@@ -31,22 +32,26 @@ namespace GerenciadorReservas.Models
         [Required]
         public DateTime DataFim { get; set; }
         
-        [Range(1, 100)]
+        [Required(ErrorMessage = "Participantes previstos é obrigatório")]
+        [Range(1, 100, ErrorMessage = "Participantes previstos devem ser entre 1 e 100")]
         public int ParticipantesPrevistos { get; set; }
         
-        [Range(0.01, 9999.99)]
+        [Required(ErrorMessage = "Valor por hora é obrigatório")]
+        [Range(0.01, 9999.99, ErrorMessage = "Valor por hora deve estar entre R$ 0,01 e R$ 9.999,99")]
         public decimal ValorHora { get; set; }
         
-        [Range(0, 30)]
+        [Range(0, 30, ErrorMessage = "Desconto deve ser entre 0% e 30%")]
         public decimal Desconto { get; set; }
-        
+        [Column(TypeName = "decimal(18,2)")]
         public decimal ValorTotal { get; private set; }
-        
-        [StringLength(50)]
+        [MaxLength(20)]
         public string? StatusPagamento { get; set; } = "Pendente";
 
         public void CalcularValores(DateTime agora)
-        {
+        {   
+            if (DataInicio <= agora && Id == 0)
+                throw new ArgumentException("Data inicial deve ser no futuro.");
+
             if (DataFim <= DataInicio)
                 throw new ArgumentException("Data final deve ser posterior à inicial.");
             

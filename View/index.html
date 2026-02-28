@@ -23,17 +23,15 @@
     <div class="toast-container" id="toastContainer"></div>
 
     <div class="container py-4">
-        <h2 class="mb-4">🏢 Painel do Administrador</h2>
-
         <ul class="nav nav-tabs mb-4" id="meuPainel" role="tablist">
-            <li class="nav-item">
-                <button class="nav-link" id="dashboard-tab" data-bs-toggle="tab" data-bs-target="#dashboard" type="button">📊 Dashboard</button>
-            </li>
             <li class="nav-item">
                 <button class="nav-link active" id="reservas-tab" data-bs-toggle="tab" data-bs-target="#reservas" type="button">📋 Gestão de Reservas</button>
             </li>
             <li class="nav-item">
                 <button class="nav-link" id="clientes-tab" data-bs-toggle="tab" data-bs-target="#clientes" type="button">👥 Cadastro de Clientes</button>
+            </li>
+            <li class="nav-item">
+                <button class="nav-link" id="dashboard-tab" data-bs-toggle="tab" data-bs-target="#dashboard" type="button">📊 Dashboard</button>
             </li>
         </ul>
 
@@ -175,16 +173,31 @@
                                 </select>
                             </div>
                             <div class="col-md-3">
+                            <label class="form-label mb-0 small">Empresa</label>
+                                <input type="text" class="form-control form-control-sm" id="filtroEmpresa" placeholder="Nome do cliente">
+                            </div>
+                            <div class="col-md-3">
+                            <label class="form-label mb-0 small">Responsável</label>
+                                <input type="text" class="form-control form-control-sm" id="filtroResponsavel" placeholder="Nome do responsável">
+                            </div>
+                            <div class="col-md-3">
+                                <label class="form-label mb-0 small">Ordem Cronológica</label>
+                                <select class="form-select form-select-sm" id="filtroOrdenacao">
+                                    <option value="asc">Mais antigas primeiro</option>
+                                    <option value="desc">Mais recentes primeiro</option>
+                                </select>
+                            </div>
+                            <div class="col-md-4">
                                 <label class="form-label mb-0 small">Data Início (a partir de)</label>
                                 <input type="date" class="form-control form-control-sm" id="filtroDataInicio">
                             </div>
-                            <div class="col-md-3">
+                            <div class="col-md-4">
                                 <label class="form-label mb-0 small">Data Fim (até)</label>
                                 <input type="date" class="form-control form-control-sm" id="filtroDataFim">
                             </div>
                             <div class="col-md-3 d-flex gap-2">
                                 <button type="submit" class="btn btn-sm btn-primary w-100">🔍 Filtrar</button>
-                                <button type="button" class="btn btn-sm btn-outline-secondary w-100" onclick="limparFiltros()">🧹 Limpar</button>
+                                <button type="button" class="btn btn-sm btn-secondary w-100" onclick="limparFiltros()">🧹 Limpar</button>
                             </div>
                         </form>
                     </div>
@@ -200,6 +213,7 @@
                                     <th>Cliente</th>
                                     <th>Título</th>
                                     <th>Responsável</th>
+                                    <th>Participantes</th>
                                     <th>Início</th>
                                     <th>Fim</th>
                                     <th>Status</th>

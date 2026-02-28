@@ -46,16 +46,19 @@ async function loadClients() {
 async function loadReservas(pagina = 1) {
     paginaAtualReservas = pagina;
     try {
-        // Captura os valores dos filtros
         const status = document.getElementById('filtroStatus')?.value || '';
         const dataInicio = document.getElementById('filtroDataInicio')?.value || '';
         const dataFim = document.getElementById('filtroDataFim')?.value || '';
+        const clienteNome = document.getElementById('filtroEmpresa')?.value || '';
+        const responsavel = document.getElementById('filtroResponsavel')?.value || '';
+        const ordenacao = document.getElementById('filtroOrdenacao')?.value || 'asc';
 
-        // Monta a URL dinâmica
-        let url = `${RESERVAS_URL}?pagina=${pagina}&tamanhoPagina=${TAMANHO_PAGINA}`;
+        let url = `${RESERVAS_URL}?pagina=${pagina}&tamanhoPagina=${TAMANHO_PAGINA}&ordenacao=${ordenacao}`;
         if (status) url += `&status=${encodeURIComponent(status)}`;
         if (dataInicio) url += `&dataInicio=${dataInicio}`;
         if (dataFim) url += `&dataFim=${dataFim}`;
+        if (clienteNome) url += `&clienteNome=${encodeURIComponent(clienteNome)}`;
+        if (responsavel) url += `&responsavel=${encodeURIComponent(responsavel)}`;
 
         const r = await fetch(url);
         const result = await r.json();
@@ -64,23 +67,23 @@ async function loadReservas(pagina = 1) {
         totalPaginasGlobais = result.totalPaginas || 1;
 
         const tbody = document.getElementById('tabelaReservas');
-        tbody.innerHTML = dados.length ? '' : '<tr><td colspan="10" class="text-center">Nenhuma reserva encontrada</td></tr>';
+        tbody.innerHTML = dados.length ? '' : '<tr><td colspan="11" class="text-center">Nenhuma reserva encontrada</td></tr>';
 
         dados.forEach(res => {
             const statusClass = { "Em andamento": "table-em-andamento", "Futuras proximas": "table-futuras-proximas", "Futuras normais": "table-futuras-normais", "Encerradas": "table-encerradas" }[res.statusCalculado];
             const badgeClass = { "Em andamento": "bg-success", "Futuras proximas": "bg-warning text-dark", "Futuras normais": "bg-primary", "Encerradas": "bg-secondary" }[res.statusCalculado] || "bg-dark";
-// O botão de pagamento muda de cor e texto dependendo do status no banco
+
             const btnPagamento = res.statusPagamento === 'Pago' 
                 ? `<button class="btn btn-sm btn-success w-100" onclick="togglePagamento(${res.id})">✅ Pago</button>`
                 : `<button class="btn btn-sm btn-outline-warning text-dark w-100" onclick="togglePagamento(${res.id})">⏳ Pendente</button>`;
 
             const row = document.createElement('tr');
             row.className = statusClass || '';
-            // Colocamos o clienteNome na primeira coluna (res.clienteNome já vem processado da nossa API C#)
             row.innerHTML = `
                 <td class="fw-bold text-truncate" style="max-width: 150px;" title="${res.clienteNome}">${res.clienteNome}</td>
                 <td class="text-truncate" style="max-width: 150px;" title="${res.tituloReserva}">${res.tituloReserva}</td>
                 <td>${res.responsavel}</td>
+                <td class="text-center fw-bold text-primary">${res.participantesPrevistos}</td>
                 <td>${new Date(res.dataInicio).toLocaleString('pt-BR').substring(0, 16)}</td>
                 <td>${new Date(res.dataFim).toLocaleString('pt-BR').substring(0, 16)}</td>
                 <td><span class="badge ${badgeClass}">${res.statusCalculado}</span></td>
@@ -204,12 +207,32 @@ function cancelarEdicaoCliente() {
 
 document.getElementById('formReserva').addEventListener('submit', async function (e) {
     e.preventDefault();
+    //validacao basica
+    const inicio = new Date(document.getElementById('dataInicio').value);
+    const fim = new Date(document.getElementById('dataFim').value);
+    const participantes = parseInt(document.getElementById('participantes').value);
+    const valorHora = parseFloat(document.getElementById('valorHora').value);
+    
+    if (fim <= inicio) { notify('Data de fim deve ser após início', 'error'); return; }
+    if (participantes <= 0) { notify('Participantes devem ser > 0', 'error'); return; }
+    if (valorHora <= 0) { notify('Valor por hora deve ser > 0', 'error'); return; }
+
     const editId = this.dataset.editId;
     const data = { id: editId ? parseInt(editId) : 0, clienteId: parseInt(document.getElementById('clienteId').value), salaId: 1, tituloReserva: document.getElementById('tituloReserva').value, responsavel: document.getElementById('responsavel').value, dataInicio: new Date(document.getElementById('dataInicio').value).toISOString(), dataFim: new Date(document.getElementById('dataFim').value).toISOString(), participantesPrevistos: parseInt(document.getElementById('participantes').value), valorHora: parseFloat(document.getElementById('valorHora').value) };
     try {
         const r = await fetch(editId ? `${RESERVAS_URL}/${editId}` : RESERVAS_URL, { method: editId ? 'PUT' : 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) });
         if (r.ok) { notify(editId ? 'Atualizado!' : 'Salvo!'); cancelarEdicao(); loadReservas(paginaAtualReservas); }
-        else { notify('Erro na operação', 'error'); }
+        else {
+            const err = await r.json().catch(() => ({ message: 'Erro desconhecido' }));
+            let msg = err.message || 'Dados inválidos';
+            
+            if(err.errors) {
+                const detalhes = Object.values(err.errors).flat().join(' ');
+                msg += ` Detalhes: ${detalhes}`;
+            }
+            
+            notify(msg, 'error');
+        }
     } catch (e) { notify('Erro de rede', 'error'); }
 });
 

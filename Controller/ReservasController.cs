@@ -26,7 +26,10 @@ namespace GerenciadorReservas.Controllers
             [FromQuery] int tamanhoPagina = 10,
             [FromQuery] string? status = null,
             [FromQuery] DateTime? dataInicio = null,
-            [FromQuery] DateTime? dataFim = null)
+            [FromQuery] DateTime? dataFim = null,
+            [FromQuery] string? clienteNome = null,
+            [FromQuery] string? responsavel = null,
+            [FromQuery] string? ordenacao = "asc")
         {
             var agora = DateTime.UtcNow;
 
@@ -34,10 +37,10 @@ namespace GerenciadorReservas.Controllers
                 .Include(r => r.Cliente)
                 .Include(r => r.Sala)
                 .AsQueryable();
-
+            //filtro por data
             if (dataInicio.HasValue) query = query.Where(r => r.DataInicio >= dataInicio.Value);
             if (dataFim.HasValue) query = query.Where(r => r.DataFim <= dataFim.Value);
-            
+            //filtro por status
             if (!string.IsNullOrEmpty(status))
             {
                 if (status == "Encerradas") query = query.Where(r => r.DataFim < agora);
@@ -45,9 +48,17 @@ namespace GerenciadorReservas.Controllers
                 else if (status == "Futuras proximas") query = query.Where(r => r.DataInicio > agora && r.DataInicio <= agora.AddHours(24));
                 else if (status == "Futuras normais") query = query.Where(r => r.DataInicio > agora.AddHours(24));
             }
+            //filtro por nome cliente
+            if (!string.IsNullOrEmpty(clienteNome))
+                query = query.Where(r => r.Cliente != null && r.Cliente.Nome.Contains(clienteNome));
+            //filtro por responsável
+            if (!string.IsNullOrEmpty(responsavel))
+                query = query.Where(r => r.Responsavel.Contains(responsavel));
 
-            query = query.OrderBy(r => r.DataInicio);
-
+            //ordenacao
+            if (ordenacao == "asc") query = query.OrderBy(r => r.DataInicio);
+            else if (ordenacao == "desc") query = query.OrderByDescending(r => r.DataInicio);
+            
             var totalRegistros = await query.CountAsync();
             var reservas = await query
                 .Skip((pagina - 1) * tamanhoPagina)
