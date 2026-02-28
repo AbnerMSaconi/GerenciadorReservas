@@ -82,6 +82,7 @@ namespace GerenciadorReservas.Controllers
                 r.ClienteId,
                 ClienteNome = r.Cliente?.Nome ?? "N/A",
                 r.SalaId,
+                SalaNome = r.Sala?.Nome ?? "Sala Excluída",
                 r.TituloReserva,
                 r.Responsavel,
                 r.DataInicio,

@@ -76,31 +76,37 @@ async function loadReservas(pagina = 1) {
         const tbody = document.getElementById('tabelaReservas');
         tbody.innerHTML = dados.length ? '' : '<tr><td colspan="11" class="text-center">Nenhuma reserva encontrada</td></tr>';
 
-        dados.forEach(res => {
+       dados.forEach(res => {
             const statusClass = { "Em andamento": "table-em-andamento", "Futuras proximas": "table-futuras-proximas", "Futuras normais": "table-futuras-normais", "Encerradas": "table-encerradas" }[res.statusCalculado];
             const badgeClass = { "Em andamento": "bg-success", "Futuras proximas": "bg-warning text-dark", "Futuras normais": "bg-primary", "Encerradas": "bg-secondary" }[res.statusCalculado] || "bg-dark";
 
-            const btnPagamento = res.statusPagamento === 'Pago'
-                ? `<button class="btn btn-sm btn-success w-100" onclick="togglePagamento(${res.id})">✅ Pago</button>`
-                : `<button class="btn btn-sm btn-outline-warning text-dark w-100" onclick="togglePagamento(${res.id})">⏳ Pendente</button>`;
+            const btnPagamento = res.statusPagamento === 'Pago' 
+                ? `<button class="btn btn-sm btn-success w-100 py-0" onclick="togglePagamento(${res.id})">✅ Pago</button>`
+                : `<button class="btn btn-sm btn-outline-warning text-dark w-100 py-0" onclick="togglePagamento(${res.id})">⏳ Pend.</button>`;
+
+            // 🔹 Formatação de data blindada (sem o bug do substring)
+            const opcoesData = { day: '2-digit', month: '2-digit', year: '2-digit', hour: '2-digit', minute: '2-digit' };
+            const dataIn = new Date(res.dataInicio).toLocaleString('pt-BR', opcoesData);
+            const dataFim = new Date(res.dataFim).toLocaleString('pt-BR', opcoesData);
 
             const row = document.createElement('tr');
             row.className = statusClass || '';
             row.innerHTML = `
-                <td class="fw-bold text-truncate" style="max-width: 150px;" title="${res.clienteNome}">${res.clienteNome}</td>
-                <td class="text-truncate" style="max-width: 150px;" title="${res.tituloReserva}">${res.tituloReserva}</td>
-                <td>${res.responsavel}</td>
+                <td class="text-truncate" style="max-width: 120px;" title="${res.clienteNome}">${res.clienteNome}</td>
+                <td class="text-truncate" style="max-width: 140px;" title="${res.tituloReserva}">${res.tituloReserva}</td>
+                <td class="text-truncate" style="max-width: 100px;" title="${res.responsavel}">${res.responsavel}</td>
+                <td class="fw-bold text-info" style="white-space: nowrap;">${res.salaNome || 'N/A'}</td> 
                 <td class="text-center fw-bold text-primary">${res.participantesPrevistos}</td>
-                <td>${new Date(res.dataInicio).toLocaleString('pt-BR').substring(0, 16)}</td>
-                <td>${new Date(res.dataFim).toLocaleString('pt-BR').substring(0, 16)}</td>
-                <td><span class="badge ${badgeClass}">${res.statusCalculado}</span></td>
-                <td>R$ ${res.valorHora.toFixed(2)}</td>
-                <td><input type="number" class="form-control form-control-sm input-inline" value="${res.desconto}" onblur="updateDiscount(${res.id}, this.value)" ${res.statusCalculado === 'Encerradas' ? 'disabled' : ''}></td>
-                <td><strong>R$ ${res.valorTotal.toFixed(2)}</strong></td>
-                <td>${btnPagamento}</td>
-                <td>
-                    <button class="btn btn-acao btn-outline-primary" onclick="editReserva(${res.id})">✏️</button> 
-                    <button class="btn btn-acao btn-outline-danger" onclick="deleteReserva(${res.id})">🗑️</button>
+                <td style="white-space: nowrap; font-size: 0.85em;">${dataIn}</td>
+                <td style="white-space: nowrap; font-size: 0.85em;">${dataFim}</td>
+                <td style="white-space: nowrap;"><span class="badge ${badgeClass}">${res.statusCalculado}</span></td>
+                <td style="white-space: nowrap;">R$ ${res.valorHora.toFixed(2)}</td>
+                <td style="width: 70px;"><input type="number" class="form-control form-control-sm text-center px-1 py-0" value="${res.desconto}" onblur="updateDiscount(${res.id}, this.value)" ${res.statusCalculado === 'Encerradas' ? 'disabled' : ''}></td>
+                <td style="white-space: nowrap;"><strong>R$ ${res.valorTotal.toFixed(2)}</strong></td>
+                <td style="width: 95px;">${btnPagamento}</td>
+                <td style="white-space: nowrap;">
+                    <button class="btn btn-sm btn-outline-primary py-0 px-2" onclick="editReserva(${res.id})">✏️</button> 
+                    <button class="btn btn-sm btn-outline-danger py-0 px-2" onclick="deleteReserva(${res.id})">🗑️</button>
                 </td>
             `;
             tbody.appendChild(row);
@@ -260,6 +266,7 @@ async function editReserva(id) {
     document.getElementById('formTitle').innerText = `✏️ Editando #${id}`;
     document.getElementById('btnSalvarReserva').className = 'btn btn-warning w-100';
     document.getElementById('clienteId').value = res.clienteId;
+    document.getElementById('salaId').value = res.salaId; // 🔹 CORREÇÃO: Faltava preencher a sala!
     document.getElementById('tituloReserva').value = res.tituloReserva;
     document.getElementById('responsavel').value = res.responsavel;
     document.getElementById('dataInicio').value = res.dataInicio.substring(0, 16);
@@ -521,6 +528,13 @@ document.addEventListener('DOMContentLoaded', () => {
     loadReservas(1);
     loadResumo();
     loadSalas();
+    // Atualiza o valor por hora automaticamente ao selecionar uma sala
+    document.getElementById('salaId')?.addEventListener('change', function() {
+        const option = this.options[this.selectedIndex];
+        if (option && option.dataset.valor) {
+            document.getElementById('valorHora').value = parseFloat(option.dataset.valor).toFixed(2);
+        }
+    });
 
     // Tratamento de Máscaras
     document.getElementById('cpfCnpjCliente')?.addEventListener('input', function (e) {
