@@ -15,7 +15,6 @@
         .input-inline { width: 80px; text-align: right; }
         .toast-container { position: fixed; top: 20px; right: 20px; z-index: 1090; }
         .btn-acao { padding: 0.25rem 0.5rem; font-size: 0.875rem; }
-        
     </style>
 </head>
 
@@ -31,135 +30,75 @@
                 <button class="nav-link" id="clientes-tab" data-bs-toggle="tab" data-bs-target="#clientes" type="button">👥 Cadastro de Clientes</button>
             </li>
             <li class="nav-item">
+                <button class="nav-link" id="salas-tab" data-bs-toggle="tab" data-bs-target="#salas" type="button">🚪 Gestão de Salas</button>
+            </li>
+            <li class="nav-item">
                 <button class="nav-link" id="dashboard-tab" data-bs-toggle="tab" data-bs-target="#dashboard" type="button">📊 Dashboard</button>
             </li>
         </ul>
 
         <div class="tab-content" id="meuPainelContent">
-            
-            <div class="tab-pane fade" id="dashboard" role="tabpanel">
-                <div class="card shadow-sm border-0 mb-4 bg-light">
-                    <div class="card-body py-2">
-                        <form id="formFiltrosDashboard" class="row g-2 align-items-end" onsubmit="event.preventDefault(); aplicarFiltrosDashboard();">
-                            <div class="col-md-4">
-                                <label class="form-label mb-0 small">Data Início</label>
-                                <input type="date" class="form-control form-control-sm" id="dashDataInicio">
-                            </div>
-                            <div class="col-md-4">
-                                <label class="form-label mb-0 small">Data Fim</label>
-                                <input type="date" class="form-control form-control-sm" id="dashDataFim">
-                            </div>
-                            <div class="col-md-4 d-flex gap-2">
-                                <button type="submit" class="btn btn-sm btn-primary w-100">📊 Atualizar Painel</button>
-                                <button type="button" class="btn btn-sm btn-outline-secondary w-100" onclick="limparFiltrosDashboard()">🧹 Limpar</button>
-                            </div>
-                        </form>
-                    </div>
-                </div>
-                <h4 class="mb-3">Resumo Financeiro e Operacional</h4>
-                
-                <div class="row mb-4" id="cardsResumo">
-                    <div class="col-md-3">
-                        <div class="card text-white bg-primary shadow-sm border-0 h-100">
-                            <div class="card-body">
-                                <h6 class="card-title text-uppercase text-white-50">Reservas Ativas</h6>
-                                <h3 class="mb-0" id="resumoAtivas">0</h3>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="col-md-3">
-                        <div class="card text-white bg-success shadow-sm border-0 h-100">
-                            <div class="card-body">
-                                <h6 class="card-title text-uppercase text-white-50">Faturamento Realizado</h6>
-                                <h3 class="mb-0" id="resumoFaturamento">R$ 0,00</h3>
-                                <small>Reservas encerradas</small>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="col-md-3">
-                        <div class="card text-dark bg-warning shadow-sm border-0 h-100">
-                            <div class="card-body">
-                                <h6 class="card-title text-uppercase text-dark-50">Receita Prevista</h6>
-                                <h3 class="mb-0" id="resumoPrevisto">R$ 0,00</h3>
-                                <small>Reservas futuras/em andamento</small>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="col-md-3">
-                        <div class="card text-white bg-info shadow-sm border-0 h-100">
-                            <div class="card-body">
-                                <h6 class="card-title text-uppercase text-white-50">Horas Vendidas</h6>
-                                <h3 class="mb-0" id="resumoHoras">0h</h3>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-                
-                <div class="card shadow-sm border-0 mb-4">
-                    <div class="card-body bg-white border-bottom -d-flex justify-content-between align-items-center">
-                        <span>📈 Curva de Ocupação e Faturamento</span>
-                        <select id="filtroGrafico" class="form-select form-select-sm w-auto bg-light border-0" onchange="loadGrafico(this.value)">
-                        <option value="">Visão diaria (30 dias)</option>
-                        <option value="mensal">Visão mensal (12 meses)</option>
-                        </select>
-                    </div>
-                    <div class="card-body">
-                            <canvas id="graficoOcupacao" height="100"></canvas>
-                    </div>
-                </div>
-            </div>
 
             <div class="tab-pane fade show active" id="reservas" role="tabpanel">
+                
                 <div class="card mb-4 shadow-sm border-0">
                     <div class="card-header bg-dark text-white d-flex justify-content-between align-items-center">
                         <span id="formTitle">✨ Registrar Nova Reserva</span>
                         <button type="button" class="btn btn-sm btn-outline-light" onclick="cancelarEdicao()">🔄 Limpar</button>
                     </div>
                     <div class="card-body">
-                        <form id="formReserva" class="row g-3">
-                            <input type="hidden" id="salaId" value="1">
-                            <div class="col-md-4">
+                        <form id="formReserva" class="row g-2">
+                            <div class="col-md-4 mb-3">
                                 <label class="form-label">Cliente Pagante *</label>
                                 <select class="form-select" id="clienteId" required>
                                     <option value="">Carregando...</option>
                                 </select>
                             </div>
-                            <div class="col-md-4">
+                            <div class="col-md-4 mb-3">
+                                <label class="form-label">Sala de Reunião *</label>
+                                <select class="form-select" id="salaId" required>
+                                    <option value="">Carregando...</option>
+                                </select>
+                            </div>
+                            <div class="col-md-4 mb-3">
                                 <label class="form-label">Título da Reunião *</label>
                                 <input type="text" class="form-control" id="tituloReserva" required>
                             </div>
-                            <div class="col-md-4">
-                                <label class="form-label">Responsável *</label>
-                                <input type="text" class="form-control" id="responsavel" required>
-                            </div>
-                            <div class="col-md-3">
-                                <label class="form-label">Início *</label>
-                                <input type="datetime-local" class="form-control" id="dataInicio" required>
-                            </div>
-                            <div class="col-md-3">
-                                <label class="form-label">Fim *</label>
-                                <input type="datetime-local" class="form-control" id="dataFim" required>
-                            </div>
-                            <div class="col-md-2">
-                                <label class="form-label">Participantes *</label>
-                                <input type="number" class="form-control" id="participantes" min="1" value="1" required>
-                            </div>
-                            <div class="col-md-2">
-                                <label class="form-label">Valor/h (R$)</label>
-                                <input type="number" step="0.01" class="form-control" id="valorHora" value="100.00" required>
-                            </div>
-                            <div class="col-md-2 d-flex align-items-end">
-                                <button type="submit" class="btn btn-success w-100" id="btnSalvarReserva">💾 Salvar</button>
+                        <div class="row g-2 align-items-end mt-2">
+                                <div class="col-md-2">
+                                    <label class="form-label mb-1 small">Responsável *</label>
+                                    <input type="text" class="form-control form-control-sm" id="responsavel" required>
+                                </div>
+                                <div class="col-md-2">
+                                    <label class="form-label mb-1 small">Início *</label>
+                                    <input type="datetime-local" class="form-control form-control-sm" id="dataInicio" required>
+                                </div>
+                                <div class="col-md-2">
+                                    <label class="form-label mb-1 small">Fim *</label>
+                                    <input type="datetime-local" class="form-control form-control-sm" id="dataFim" required>
+                                </div>
+                                <div class="col-md-2">
+                                    <label class="form-label mb-1 small">Participantes *</label>
+                                    <input type="number" class="form-control form-control-sm" id="participantes" min="1" value="1" required>
+                                </div>
+                                <div class="col-md-2">
+                                    <label class="form-label mb-1 small">Valor/h (R$)</label>
+                                    <input type="number" step="0.01" class="form-control form-control-sm" id="valorHora" value="100.00" required>
+                                </div>
+                                <div class="col-md-2">
+                                    <button type="submit" class="btn btn-sm btn-success w-100" id="btnSalvarReserva">💾 Salvar</button>
+                                </div>
                             </div>
                         </form>
                     </div>
                 </div>
+
                 <div class="card shadow-sm border-0">
                     <div class="card-header bg-secondary text-white d-flex justify-content-between align-items-center">
                         <span>📊 Listagem de Reservas</span>
                         <button class="btn btn-sm btn-light" onclick="loadReservas(1)">🔄 Atualizar</button>
                     </div>
-                    
+
                     <div class="card-body bg-light border-bottom py-2">
                         <form id="formFiltros" class="row g-2 align-items-end" onsubmit="event.preventDefault(); loadReservas(1);">
                             <div class="col-md-3">
@@ -173,11 +112,11 @@
                                 </select>
                             </div>
                             <div class="col-md-3">
-                            <label class="form-label mb-0 small">Empresa</label>
+                                <label class="form-label mb-0 small">Empresa</label>
                                 <input type="text" class="form-control form-control-sm" id="filtroEmpresa" placeholder="Nome do cliente">
                             </div>
                             <div class="col-md-3">
-                            <label class="form-label mb-0 small">Responsável</label>
+                                <label class="form-label mb-0 small">Responsável</label>
                                 <input type="text" class="form-control form-control-sm" id="filtroResponsavel" placeholder="Nome do responsável">
                             </div>
                             <div class="col-md-3">
@@ -195,17 +134,13 @@
                                 <label class="form-label mb-0 small">Data Fim (até)</label>
                                 <input type="date" class="form-control form-control-sm" id="filtroDataFim">
                             </div>
-                            <div class="col-md-3 d-flex gap-2">
+                            <div class="col-md-4 d-flex gap-2">
                                 <button type="submit" class="btn btn-sm btn-primary w-100">🔍 Filtrar</button>
                                 <button type="button" class="btn btn-sm btn-secondary w-100" onclick="limparFiltros()">🧹 Limpar</button>
                             </div>
                         </form>
                     </div>
-                    <div class="table-responsive">
-                        <table class="table table-hover mb-0">
 
-                <div class="card shadow-sm border-0">
-                    </div>
                     <div class="table-responsive">
                         <table class="table table-hover mb-0">
                             <thead class="table-dark">
@@ -227,6 +162,7 @@
                             <tbody id="tabelaReservas"></tbody>
                         </table>
                     </div>
+                    
                     <div class="card-footer d-flex justify-content-between align-items-center bg-white">
                         <span id="infoPaginacao" class="text-muted">Página 1 de 1</span>
                         <div class="btn-group">
@@ -283,15 +219,124 @@
                 </div>
             </div>
 
-        </div> </div>
+            <div class="tab-pane fade" id="salas" role="tabpanel">
+                <div class="card mb-4 shadow-sm border-0">
+                    <div class="card-header bg-success text-white d-flex justify-content-between align-items-center">
+                        <span id="formSalaTitle">🚪 Cadastrar Nova Sala</span>
+                        <button type="button" class="btn btn-sm btn-outline-light" onclick="cancelarEdicaoSala()">🔄 Limpar</button>
+                    </div>
+                    <div class="card-body">
+                        <form id="formSala" class="row g-3">
+                            <div class="col-md-6">
+                                <label class="form-label">Nome da Sala *</label>
+                                <input type="text" class="form-control" id="nomeSala" required>
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label">Valor/Hora Padrão (R$) *</label>
+                                <input type="number" step="0.01" min="0.01" class="form-control" id="valorHoraPadrao" placeholder="100.00" required>
+                            </div>
+                            <div class="col-md-2 d-flex align-items-end">
+                                <button type="submit" class="btn btn-success w-100" id="btnSalvarSala">💾 Salvar</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
 
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-    
+                <div class="card shadow-sm border-0">
+                    <div class="card-header bg-white border-bottom">
+                        <span class="fw-bold">🚪 Salas Cadastradas</span>
+                    </div>
+                    <div class="card-body p-0">
+                        <div class="table-responsive">
+                            <table class="table table-hover mb-0">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th>ID</th>
+                                        <th>Nome da Sala</th>
+                                        <th>Valor/Hora Padrão</th>
+                                        <th>Ações</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="tabelaSalas"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="tab-pane fade" id="dashboard" role="tabpanel">
+                
+                <div class="card shadow-sm border-0 mb-4 bg-light">
+                    <div class="card-body py-2">
+                        <form id="formFiltrosDashboard" class="row g-2 align-items-end" onsubmit="event.preventDefault(); aplicarFiltrosDashboard();">
+                            <div class="col-md-4">
+                                <label class="form-label mb-0 small">Data Início</label>
+                                <input type="date" class="form-control form-control-sm" id="dashDataInicio">
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label mb-0 small">Data Fim</label>
+                                <input type="date" class="form-control form-control-sm" id="dashDataFim">
+                            </div>
+                            <div class="col-md-4 d-flex gap-2">
+                                <button type="submit" class="btn btn-sm btn-primary w-100">📊 Atualizar Painel</button>
+                                <button type="button" class="btn btn-sm btn-outline-secondary w-100" onclick="limparFiltrosDashboard()">🧹 Limpar</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+                
+                <h4 class="mb-3">Resumo Financeiro e Operacional</h4>
+
+                <div class="row mb-4" id="cardsResumo">
+                    <div class="col-md-3">
+                        <div class="card text-white bg-primary shadow-sm border-0 h-100">
+                            <div class="card-body">
+                                <h6 class="card-title text-uppercase text-white-50">Reservas Ativas</h6>
+                                <h3 class="mb-0" id="resumoAtivas">0</h3>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="card text-white bg-success shadow-sm border-0 h-100">
+                            <div class="card-body">
+                                <h6 class="card-title text-uppercase text-white-50">Faturamento Realizado</h6>
+                                <h3 class="mb-0" id="resumoFaturamento">R$ 0,00</h3>
+                                <small>Reservas encerradas</small>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="card text-dark bg-warning shadow-sm border-0 h-100">
+                            <div class="card-body">
+                                <h6 class="card-title text-uppercase text-dark-50">Receita Prevista</h6>
+                                <h3 class="mb-0" id="resumoPrevisto">R$ 0,00</h3>
+                                <small>Reservas futuras/em andamento</small>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="card text-white bg-info shadow-sm border-0 h-100">
+                            <div class="card-body">
+                                <h6 class="card-title text-uppercase text-white-50">Horas Vendidas</h6>
+                                <h3 class="mb-0" id="resumoHoras">0h</h3>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card shadow-sm border-0 mb-4">
+                    <div class="card-body bg-white border-bottom d-flex justify-content-between align-items-center">
+                        <span>📈 Curva de Ocupação e Faturamento</span>
+                    </div>
+                    <div class="card-body">
+                        <canvas id="graficoOcupacao" height="100"></canvas>
+                    </div>
+                </div>
+
+            </div>
+
+        </div> </div> <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    
     <script src="script.js"></script>
 </body>
-</html>
-</body>
-
 </html>

@@ -2,6 +2,7 @@
 const API_BASE = 'http://localhost:5208/api';
 const RESERVAS_URL = `${API_BASE}/reservas`;
 const CLIENTES_URL = `${API_BASE}/clientes`;
+const SALAS_URL = `${API_BASE}/salas`;
 
 // Variáveis globais usadas para paginação das reservas
 let paginaAtualReservas = 1;
@@ -68,8 +69,8 @@ async function loadReservas(pagina = 1) {
 
         const r = await fetch(url);
         const result = await r.json();
-        
-        const dados = result.dados || result; 
+
+        const dados = result.dados || result;
         totalPaginasGlobais = result.totalPaginas || 1;
 
         const tbody = document.getElementById('tabelaReservas');
@@ -79,7 +80,7 @@ async function loadReservas(pagina = 1) {
             const statusClass = { "Em andamento": "table-em-andamento", "Futuras proximas": "table-futuras-proximas", "Futuras normais": "table-futuras-normais", "Encerradas": "table-encerradas" }[res.statusCalculado];
             const badgeClass = { "Em andamento": "bg-success", "Futuras proximas": "bg-warning text-dark", "Futuras normais": "bg-primary", "Encerradas": "bg-secondary" }[res.statusCalculado] || "bg-dark";
 
-            const btnPagamento = res.statusPagamento === 'Pago' 
+            const btnPagamento = res.statusPagamento === 'Pago'
                 ? `<button class="btn btn-sm btn-success w-100" onclick="togglePagamento(${res.id})">✅ Pago</button>`
                 : `<button class="btn btn-sm btn-outline-warning text-dark w-100" onclick="togglePagamento(${res.id})">⏳ Pendente</button>`;
 
@@ -108,7 +109,7 @@ async function loadReservas(pagina = 1) {
         const elInfo = document.getElementById('infoPaginacao');
         const elPrev = document.getElementById('btnPagAnterior');
         const elNext = document.getElementById('btnPagProxima');
-        
+
         if (elInfo) elInfo.innerText = `Página ${paginaAtualReservas} de ${totalPaginasGlobais}`;
         if (elPrev) elPrev.disabled = paginaAtualReservas <= 1;
         if (elNext) elNext.disabled = paginaAtualReservas >= totalPaginasGlobais;
@@ -223,25 +224,28 @@ document.getElementById('formReserva').addEventListener('submit', async function
     const fim = new Date(document.getElementById('dataFim').value);
     const participantes = parseInt(document.getElementById('participantes').value);
     const valorHora = parseFloat(document.getElementById('valorHora').value);
-    
+
     if (fim <= inicio) { notify('Data de fim deve ser após início', 'error'); return; }
     if (participantes <= 0) { notify('Participantes devem ser > 0', 'error'); return; }
     if (valorHora <= 0) { notify('Valor por hora deve ser > 0', 'error'); return; }
 
     const editId = this.dataset.editId;
-    const data = { id: editId ? parseInt(editId) : 0, clienteId: parseInt(document.getElementById('clienteId').value), salaId: 1, tituloReserva: document.getElementById('tituloReserva').value, responsavel: document.getElementById('responsavel').value, dataInicio: new Date(document.getElementById('dataInicio').value).toISOString(), dataFim: new Date(document.getElementById('dataFim').value).toISOString(), participantesPrevistos: parseInt(document.getElementById('participantes').value), valorHora: parseFloat(document.getElementById('valorHora').value) };
+    const data = { id: editId ? parseInt(editId) : 0, clienteId: parseInt(document.getElementById('clienteId').value), salaId: parseInt(document.getElementById('salaId').value),
+         tituloReserva: document.getElementById('tituloReserva').value, responsavel: document.getElementById('responsavel').value, 
+         dataInicio: new Date(document.getElementById('dataInicio').value).toISOString(), dataFim: new Date(document.getElementById('dataFim').value).toISOString(), 
+         participantesPrevistos: parseInt(document.getElementById('participantes').value), valorHora: parseFloat(document.getElementById('valorHora').value) };
     try {
         const r = await fetch(editId ? `${RESERVAS_URL}/${editId}` : RESERVAS_URL, { method: editId ? 'PUT' : 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) });
         if (r.ok) { notify(editId ? 'Atualizado!' : 'Salvo!'); cancelarEdicao(); loadReservas(paginaAtualReservas); loadResumo(); }
         else {
             const err = await r.json().catch(() => ({ message: 'Erro desconhecido' }));
             let msg = err.message || 'Dados inválidos';
-            
-            if(err.errors) {
+
+            if (err.errors) {
                 const detalhes = Object.values(err.errors).flat().join(' ');
                 msg += ` Detalhes: ${detalhes}`;
             }
-            
+
             notify(msg, 'error');
         }
     } catch (e) { notify('Erro de rede', 'error'); }
@@ -316,17 +320,17 @@ async function loadResumo() {
         const r = await fetch(url);
         if (!r.ok) throw new Error('Falha ao buscar resumo');
         const resumo = await r.json();
-        
+
         const cards = document.getElementById('cardsResumo');
         if (cards) cards.style.opacity = '0.5';
-        
+
         document.getElementById('resumoAtivas').innerText = resumo.ativas;
         document.getElementById('resumoHoras').innerText = resumo.totalHoras + 'h';
         document.getElementById('resumoFaturamento').innerText = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(resumo.faturamentoRealizado);
         document.getElementById('resumoPrevisto').innerText = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(resumo.faturamentoPrevisto);
-            
+
         if (cards) setTimeout(() => cards.style.opacity = '1', 200);
-        
+
     } catch (e) { console.error("Erro no resumo:", e); }
 }
 
@@ -334,7 +338,7 @@ async function loadResumo() {
 async function togglePagamento(id) {
     try {
         const r = await fetch(`${RESERVAS_URL}/${id}/pagamento`, { method: 'POST' });
-        
+
         if (r.ok) {
             notify('Status Financeiro Atualizado!');
             loadReservas(paginaAtualReservas); // Atualiza a tabela
@@ -344,9 +348,9 @@ async function togglePagamento(id) {
             console.error("Erro do servidor:", err);
             notify(`Falha: ${err.message || 'Erro na API'}`, 'error');
         }
-    } catch (e) { 
+    } catch (e) {
         console.error("Falha de comunicação:", e);
-        notify('Erro de conexão com a API', 'error'); 
+        notify('Erro de conexão com a API', 'error');
     }
 }
 // ==========================================
@@ -364,7 +368,7 @@ async function loadGrafico() {
 
         const r = await fetch(url);
         if (!r.ok) throw new Error('Falha ao buscar dados do gráfico');
-        
+
         const dados = await r.json();
         const labels = dados.map(d => d.data);
         const volume = dados.map(d => d.quantidade);
@@ -375,7 +379,7 @@ async function loadGrafico() {
 
         canvas.parentElement.style.height = '350px';
         const ctx = canvas.getContext('2d');
-        
+
         // 🔹 A CORREÇÃO: Pede para o próprio Chart.js localizar e destruir o gráfico antigo com segurança
         const chartExistente = Chart.getChart("graficoOcupacao");
         if (chartExistente) {
@@ -402,25 +406,130 @@ async function loadGrafico() {
         });
     } catch (e) { console.error("Erro ao carregar gráfico:", e); }
 }
-
 // ==========================================
+// MÓDULO DE SALAS
+// ==========================================
+async function loadSalas() {
+    try {
+        const r = await fetch(SALAS_URL);
+        const salas = await r.json();
+
+        const tbody = document.getElementById('tabelaSalas');
+        if (tbody) {
+            tbody.innerHTML = salas.length ? '' : '<tr><td colspan="4" class="text-center">Nenhuma sala cadastrada</td></tr>';
+            salas.forEach(s => {
+                tbody.innerHTML += `
+                    <tr>
+                        <td>${s.id}</td>
+                        <td>${s.nome}</td>
+                        <td>R$ ${s.valorHoraPadrao.toFixed(2)}</td>
+                        <td>
+                            <button class="btn btn-acao btn-outline-primary" onclick="editSala(${s.id})">✏️</button>
+                            <button class="btn btn-acao btn-outline-danger" onclick="deleteSala(${s.id})">🗑️</button>
+                        </td>
+                    </tr>`;
+            });
+        }
+
+        const select = document.getElementById('salaId');
+        if (select) {
+            // Guarda o valor que estava selecionado antes de recarregar (se houver)
+            const valorAtual = select.value; 
+            select.innerHTML = '<option value="">Selecione a sala...</option>';
+            salas.forEach(s => {
+                select.innerHTML += `<option value="${s.id}" data-valor="${s.valorHoraPadrao}">${s.nome} (R$ ${s.valorHoraPadrao}/h)</option>`;
+            });
+            if (valorAtual) select.value = valorAtual;
+        }
+    } catch (e) { notify('Erro ao carregar salas', 'error'); }
+}
+
+document.getElementById('formSala')?.addEventListener('submit', async function (e) {
+    e.preventDefault();
+    const editId = this.dataset.editId;
+    const data = {
+        id: editId ? parseInt(editId) : 0,
+        nome: document.getElementById('nomeSala').value,
+        valorHoraPadrao: parseFloat(document.getElementById('valorHoraPadrao').value)
+    };
+
+    const url = editId ? `${SALAS_URL}/${editId}` : SALAS_URL;
+    const method = editId ? 'PUT' : 'POST';
+
+    try {
+        const r = await fetch(url, { method: method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) });
+        if (r.ok) {
+            notify(editId ? 'Sala Atualizada!' : 'Sala Cadastrada!');
+            cancelarEdicaoSala();
+            loadSalas();
+        } else {
+            const err = await r.json().catch(() => ({ message: 'Erro na operação' }));
+            notify(`Falha: ${err.message || 'Dados inválidos'}`, 'error');
+        }
+    } catch (e) { notify('Erro de rede', 'error'); }
+});
+
+async function editSala(id) {
+    try {
+        const r = await fetch(`${SALAS_URL}/${id}`);
+        if (!r.ok) throw new Error('Sala não encontrada');
+        const s = await r.json();
+
+        const form = document.getElementById('formSala');
+        form.dataset.editId = id;
+        document.getElementById('formSalaTitle').innerText = `✏️ Editando Sala #${id}`;
+        document.getElementById('nomeSala').value = s.nome;
+        document.getElementById('valorHoraPadrao').value = s.valorHoraPadrao;
+        
+        const btn = document.getElementById('btnSalvarSala');
+        btn.innerText = '💾 Atualizar';
+        btn.className = 'btn btn-warning w-100';
+        
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+    } catch (e) { notify(e.message, 'error'); }
+}
+
+async function deleteSala(id) {
+    if (!confirm('Deseja realmente excluir esta sala?')) return;
+    try {
+        const r = await fetch(`${SALAS_URL}/${id}`, { method: 'DELETE' });
+        if (r.ok) {
+            notify('Sala removida!');
+            loadSalas();
+        } else {
+            const err = await r.json().catch(() => ({ message: 'Falha ao excluir' }));
+            notify(err.message, 'error');
+        }
+    } catch (e) { notify('Erro de rede', 'error'); }
+}
+
+function cancelarEdicaoSala() {
+    const form = document.getElementById('formSala');
+    delete form.dataset.editId;
+    form.reset();
+    document.getElementById('formSalaTitle').innerText = '🚪 Cadastrar Nova Sala';
+    const btn = document.getElementById('btnSalvarSala');
+    btn.innerText = '💾 Salvar';
+    btn.className = 'btn btn-success w-100';
+}
 // INICIALIZAÇÃO DA PÁGINA
 // ==========================================
 // Inicialização geral: ao carregar a página, busca clientes, reservas e resumo,
 // configura máscaras e eventos para elementos de formulário e abas.
-document.addEventListener('DOMContentLoaded', () => { 
-    loadClients(); 
-    loadReservas(1); 
+document.addEventListener('DOMContentLoaded', () => {
+    loadClients();
+    loadReservas(1);
     loadResumo();
-    
+    loadSalas();
+
     // Tratamento de Máscaras
-    document.getElementById('cpfCnpjCliente')?.addEventListener('input', function(e) {
-        let v = e.target.value.replace(/\D/g, ''); 
-        if (v.length <= 11) { 
+    document.getElementById('cpfCnpjCliente')?.addEventListener('input', function (e) {
+        let v = e.target.value.replace(/\D/g, '');
+        if (v.length <= 11) {
             v = v.replace(/(\d{3})(\d)/, '$1.$2');
             v = v.replace(/(\d{3})(\d)/, '$1.$2');
             v = v.replace(/(\d{3})(\d{1,2})$/, '$1-$2');
-        } else { 
+        } else {
             v = v.replace(/^(\d{2})(\d)/, '$1.$2');
             v = v.replace(/^(\d{2})\.(\d{3})(\d)/, '$1.$2.$3');
             v = v.replace(/\.(\d{3})(\d)/, '.$1/$2');
@@ -429,22 +538,22 @@ document.addEventListener('DOMContentLoaded', () => {
         e.target.value = v;
     });
 
-    document.getElementById('telefoneCliente')?.addEventListener('input', function(e) {
-        let v = e.target.value.replace(/\D/g, ''); 
-        v = v.replace(/^(\d{2})(\d)/g, '($1) $2'); 
-        v = v.replace(/(\d)(\d{4})$/, '$1-$2');    
+    document.getElementById('telefoneCliente')?.addEventListener('input', function (e) {
+        let v = e.target.value.replace(/\D/g, '');
+        v = v.replace(/^(\d{2})(\d)/g, '($1) $2');
+        v = v.replace(/(\d)(\d{4})$/, '$1-$2');
         e.target.value = v;
     });
 
     // Tratamento de Renderização do Gráfico no Bootstrap Lifecycle
-const tabDashboard = document.getElementById('dashboard-tab');
+    const tabDashboard = document.getElementById('dashboard-tab');
     if (tabDashboard) {
         tabDashboard.addEventListener('shown.bs.tab', function () {
             // Pede para o Chart.js localizar o gráfico ativo
             const chartExistente = Chart.getChart("graficoOcupacao");
-            
+
             if (!chartExistente) {
-                loadGrafico(); 
+                loadGrafico();
             } else {
                 chartExistente.resize();
             }
